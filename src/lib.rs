@@ -31,10 +31,16 @@ impl Scene{
         for x in 0..self.widht{
             for y in 0..self.height{
                 let rayo_actual = Ray::new_camera_ray(x,y,&self);
+                let mut minimum_distance_to_intersection = (0.0,true);
                 for objeto in &self.objects_list{
-                    let interseccion = objeto.intersects(&rayo_actual); //que pasa si dos lo intersectan en planos distintos?
+                    let interseccion = objeto.intersects(&rayo_actual);
                     if let Some(interseccion) = interseccion{
-                        imagen.put_pixel(x, y, interseccion.rgba());
+                        if interseccion.distance()<minimum_distance_to_intersection.0 || minimum_distance_to_intersection.1 {
+                            imagen.put_pixel(x, y, interseccion.rgba());
+                            minimum_distance_to_intersection.0 = interseccion.distance();
+                            minimum_distance_to_intersection.1 = false;
+                        }
+                        
                     }
                 }
             }
@@ -53,7 +59,7 @@ impl Scene{
 mod tests{
     use super::*;
     use objects::{
-        Ray,
+        objects::*
     };
     use maths::point::Point3D;
     use maths::vector3::Vector3D;
@@ -63,11 +69,16 @@ mod tests{
         let mut escena = Scene::new();
         escena.widht = 800;
         escena.height = 800;
-        escena.objects_list.push(Box::new(objects::objects::Sphere::new()));
-        escena.objects_list.push(Box::new(objects::objects::Sphere::new_with_coordinates(
+        escena.objects_list.push(Box::new(Sphere::new()));
+        escena.objects_list.push(Box::new(Sphere::new_with_coordinates(
             Point3D::new(2.0, -2.0, -10.0),
             2.0,
             Color::new_rgb(255,0,0)
+        )));
+        escena.objects_list.push(Box::new(Plane::new(
+            Point3D::new(0.0,1.0,0.0),
+            Vector3D::new(0.0, 1.0, 0.0), 
+            Color::new_rgb(0,255,128)
         )));
         escena.render();
         escena.unwrap_image().save("esfera_centrada.png").unwrap();

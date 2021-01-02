@@ -4,15 +4,6 @@ pub trait Vector3{
     fn x(&self)->f64;
     fn y(&self)->f64;
     fn z(&self)->f64;
-    /*fn x(&self)->f64{
-        *self.x_borrow()
-    }
-    fn y(&self)->f64{
-        *self.y_borrow()
-    }
-    fn z(&self)->f64{
-        *self.z_borrow()
-    }*/
     #[inline]
     fn dot_product<T: Vector3>(&self,vector: &T)->f64{
         self.x() * vector.x() + self.y() * vector.y() + self.z() * vector.z()
@@ -66,12 +57,12 @@ pub trait Vector3{
         self.addition(&vector.escalar_product(-1.0))
     }
 }
-#[derive(PartialEq,Debug)]
+#[derive(PartialEq,Debug,Clone)]
 ///A structure that represents a 3D vector and implements Vector3, its recomended to use it, it implements standard ops and PartialEq (consider that it is meaningless to consider one gretear than the other)
 pub struct Vector3D{
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+    x: f64,
+    y: f64,
+    z: f64,
 }
 impl ops::Add for Vector3D{
     type Output = Vector3D;
@@ -104,6 +95,7 @@ impl ops::Mul<Vector3D> for Vector3D{
     }
 }
 impl Vector3D{
+    #[inline]
     pub fn new_zeros()->Self{
         Vector3D{
             x: 0.0,
@@ -111,6 +103,7 @@ impl Vector3D{
             z: 0.0,
         }
     }
+    #[inline]
     pub fn new(x: f64, y: f64,z: f64)->Self{
         Vector3D{
             x,
@@ -118,6 +111,7 @@ impl Vector3D{
             z,
         }
     }
+    #[inline]
     pub fn new_from_point(point: crate::maths::point::Point3D)->Vector3D{
         Vector3D::new(point.x, point.y,point.z)
     }
