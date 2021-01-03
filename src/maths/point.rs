@@ -1,6 +1,6 @@
 use std::ops;
 use super::vector3::{Vector3,Vector3D};
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct Point3D{
     pub x: f64,
     pub y: f64,

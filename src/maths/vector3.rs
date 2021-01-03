@@ -1,4 +1,5 @@
 use std::ops;
+use super::point::Point3D;
 ///Implements 3D mathematical operations (like dot product, cross product, etc) for objects
 pub trait Vector3{
     fn x(&self)->f64;
@@ -55,6 +56,9 @@ pub trait Vector3{
     ///substract vector from self
     fn substract<T: Vector3>(&self,vector: &T)->Vector3D{
         self.addition(&vector.escalar_product(-1.0))
+    }
+    fn into_point(&self)->Point3D{
+        Point3D::new(self.x(),self.y(),self.z())
     }
 }
 #[derive(PartialEq,Debug,Clone)]
@@ -114,6 +118,16 @@ impl Vector3D{
     #[inline]
     pub fn new_from_point(point: crate::maths::point::Point3D)->Vector3D{
         Vector3D::new(point.x, point.y,point.z)
+    }
+    pub fn normalize(mut self)->Self{
+        let largo = self.module();
+        if largo == 0.0{
+            return self;
+        }
+        self.x /= largo;
+        self.y /= largo;
+        self.z /= largo; 
+        self
     }
 }
 impl Vector3 for Vector3D{
