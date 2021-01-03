@@ -44,3 +44,21 @@ impl Vector3 for Point3D{
         self.z
     }
 }
+impl ops::Mul<f64> for Point3D{
+    type Output = Point3D;
+    fn mul(mut self,other: f64)->Self{
+        self.x *= other;
+        self.y *= other;
+        self.z *= other;
+        self  
+    }
+}
+impl ops::Add for Point3D{
+    type Output = Point3D;
+    fn add(mut self,other: Point3D)->Self{
+        self.x += other.x;
+        self.y += other.y;
+        self.z += other.z;
+        self
+    }
+}

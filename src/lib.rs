@@ -3,6 +3,7 @@
 pub mod maths;
 pub mod objects;
 pub mod color;
+use maths::vector3::Vector3;
 use objects::Ray;
 use image::{DynamicImage, GenericImage};
 pub struct Scene{
@@ -12,6 +13,7 @@ pub struct Scene{
     pub objects_list: Vec<Box<dyn objects::SceneObject>>,
     pub rendering_max_distance: usize,
     image_rendered: Option<DynamicImage>,
+    shadow_bias: f64,
 }
 impl Scene{
     ///Creates a new scene with the source of light in the sky, above the camera. By default, it's rendering in a low definition
@@ -24,6 +26,7 @@ impl Scene{
             objects_list: Vec::new(),
             rendering_max_distance: 100,
             image_rendered: None,
+            shadow_bias: 1e-13,
         }
     }
     pub fn render(&mut self){
@@ -33,11 +36,12 @@ impl Scene{
                 let rayo_actual = Ray::new_camera_ray(x,y,&self);
                 let mut minimum_distance_to_intersection = (0.0,true);
                 for objeto in &self.objects_list{
-                    let interseccion = objeto.intersects(&rayo_actual,&self);
-                    if let Some(interseccion) = interseccion{
-                        if interseccion.distance()<minimum_distance_to_intersection.0 || minimum_distance_to_intersection.1 {
-                            imagen.put_pixel(x, y, interseccion.rgba());
-                            minimum_distance_to_intersection.0 = interseccion.distance();
+                    if objeto.intersects(&rayo_actual){
+                        let hit_point = objeto.intersection_point(&rayo_actual).unwrap();
+                        let hit_point_module = hit_point.module();
+                        if hit_point_module<minimum_distance_to_intersection.0 || minimum_distance_to_intersection.1 {
+                            imagen.put_pixel(x, y, objeto.color_at_intersection(&hit_point,&self).to_rgba(255));
+                            minimum_distance_to_intersection.0 = hit_point_module;
                             minimum_distance_to_intersection.1 = false;
                         }
                         
@@ -49,11 +53,8 @@ impl Scene{
     }
     fn object_between(&self,ray: &Ray)->bool{
         for objeto in &self.objects_list{
-            let interseccion = objeto.intersects(&ray,&self);
-            if interseccion.is_none(){
-                 continue;
-            }else{
-                return true;
+            if objeto.intersects(&ray) {
+                 return true;
             }
         }
         false

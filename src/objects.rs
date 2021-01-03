@@ -4,8 +4,6 @@ use crate::maths::{
 };
 use crate::Scene;
 use crate::color::Color;
-use image::{Rgba,Pixel};
-
 
 #[derive(Debug,Clone)]
 pub struct Ray{
@@ -47,44 +45,6 @@ impl Ray{
 }
 
 
-#[derive(Debug)]
-pub struct Intersection{
-    color_at_intersection: Color,
-    reflected_ray: Ray,
-    alpha_channel: u8,
-    distance_to_intersection: f64,
-}
-impl Intersection{
-    #[inline]
-    pub fn rgba(&self)->Rgba<u8>{
-        Rgba::from_channels(self.color_at_intersection.to_r(),self.color_at_intersection.to_g(),self.color_at_intersection.to_b(),self.alpha_channel)
-    }
-    #[inline]
-    pub fn new_values(color_at_intersection: Color,reflected_ray: Ray,alpha_channel: u8,distance_to_intersection:f64)->Self{
-        Intersection{
-            color_at_intersection,
-            reflected_ray,
-            alpha_channel,
-            distance_to_intersection,
-        }
-    }
-    #[inline]
-    pub fn color(&self)->&Color{
-        &self.color_at_intersection
-    }
-    #[inline]
-    pub fn distance(&self)->f64{
-        self.distance_to_intersection
-    }
-    #[inline]
-    pub fn reflexion(&self)->&Ray{
-        &self.reflected_ray
-    }
-    #[inline]
-    pub fn alpha_channel(&self)->u8{
-        self.alpha_channel
-    }
-}
 #[derive(Debug,Clone)]
 pub struct DirectionalLight{
     pub color: Color,
@@ -109,18 +69,24 @@ impl DirectionalLight{
 }
 
 
-pub trait SceneObject{
+pub trait  SceneObject{
     ///Returns the wrapped intersection if the ray intersects the object
-    fn intersects(&self,ray: &Ray,scene: &Scene)->Option<Intersection>;
+    fn intersects(&self,ray: &Ray)->bool;
+    ///If the intersection point does not exists, it might be undefined behavior
+    fn intersection_point(&self,ray:&Ray)->Option<Point3D>;
     fn surface_normal(&self,hit_point: &Point3D)->Vector3D;
     fn color_at_intersection(&self,hit_point: &Point3D,scene: &Scene)->Color{
-        let shadow_ray = Ray::new(hit_point.clone(),scene.light_sources.direction.clone());
+        // CALCULO DE SOMBRAS
+        //Lo que se le suma al punto evita el shadow acne sobre los planos
+        let shadow_ray = Ray::new(hit_point.clone() + (self.surface_normal(&hit_point)*scene.shadow_bias).into_point(),-1.0 * scene.light_sources.direction.clone());
         let light_intensity;
         if scene.object_between(&shadow_ray){
             light_intensity = 0.0; 
         }else{
             light_intensity = scene.light_sources.intensity;
         }
+        // FIN DE CALCULO DE SOMBRAS
+        
         let light = scene.light_sources.clone();
         let light_power = self.surface_normal(hit_point).dot_product(&(-1.0*light.direction.clone().normalize())).max(0.0) * light_intensity;
         let light_reflected = self.albedoo() / std::f64::consts::PI;
@@ -141,13 +107,10 @@ pub mod objects{
             },
         },
         color::Color,
-        Scene,
     };
     use super::{
         SceneObject,
         Ray,
-        Intersection,
-        DirectionalLight,
     };
 
 
@@ -158,28 +121,28 @@ pub mod objects{
         albedoo: f64,
     }
     impl SceneObject for Sphere{
-        fn intersects(&self,ray: &Ray,scene: &Scene)->Option<Intersection>{
-            let alpha = 255;
-            let light = scene;
-            let vec_posicion = Vector3D::new_from_point(self.center.clone());
-            let vec_posicion_module = vec_posicion.module();
-            let cateto = f64::sin(vec_posicion.angle_between(&ray.direccion))*vec_posicion_module;
-            if self.radio >= cateto{
+        fn intersects(&self,ray: &Ray)->bool{
+            //Como uso trait objects, esta fue la mejor solucion que encontré para evitar que marque sombra en sus propias intersecciones
+            if ((ray.punto.clone()-self.center.clone()).module() - self.radio).abs() < 1e-6{
+                return false;
+            }
+            let aux = ray.direccion.clone().normalize().dot_product(&(ray.punto.clone() - self.center.clone()));
+            let discriminante = aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2));
+            if discriminante < 0.0 {
+                false
+            }else{
+                true
+            }
+        }
+        fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
                 let aux = ray.direccion.clone().normalize().dot_product(&(ray.punto.clone() - self.center.clone()));
                 let lambda1 = -aux+(aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2))).sqrt();
                 let lambda2 = -aux-(aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2))).sqrt();
                 if lambda1>lambda2{
-                    Some(Intersection::new_values(self.color_at_intersection(
-                        &(lambda2 * ray.direccion.clone() + ray.punto.clone().into_vector()).into_point(), &light),
-                        Ray::new_null(), alpha,f64::sqrt(vec_posicion_module.powi(2)+cateto.powi(2))))
+                    Some((lambda2 * ray.direccion.clone() + ray.punto.clone().into_vector()).into_point())
                 }else{
-                    Some(Intersection::new_values(self.color_at_intersection(
-                        &(lambda1 * ray.direccion.clone() + ray.punto.clone().into_vector()).into_point(), &light),
-                        Ray::new_null(), alpha,f64::sqrt(vec_posicion_module.powi(2)+cateto.powi(2))))
+                    Some((lambda1 * ray.direccion.clone() + ray.punto.clone().into_vector()).into_point())
                 }
-            }else{
-                None
-            }
         }
         fn surface_normal(&self,hit_point: &Point3D)->Vector3D{
             hit_point.substract(&self.center).normalize()
@@ -227,19 +190,22 @@ pub mod objects{
         }
     }
     impl SceneObject for Plane{
-        fn intersects(&self,ray: &Ray,scene: &Scene)->Option<Intersection>{
+        fn intersects(&self,ray: &Ray)->bool{
             if ray.direccion.dot_product(&self.normal).abs() < 1e-6{ //es epsilon
-                None
+                false
             }else{
                 let lambda = self.normal.dot_product(&(self.punto.clone()-ray.punto.clone()))
                 /self.normal.dot_product(&ray.direccion);
-                if lambda < 0.0{
-                    return None
+                if lambda <= 0.0{
+                    return false
                 }
-                let interseccion_punto = (lambda * ray.direccion.clone() + ray.punto.clone().into_vector())-ray.punto.clone().into_vector();
-                let color_at_intersection = self.color_at_intersection(&interseccion_punto.into_point(), &scene);
-                Some(Intersection::new_values(color_at_intersection, Ray::new_null(), 255,interseccion_punto.module()))
+                true
             }
+        }
+        fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
+            let lambda = self.normal.dot_product(&(self.punto.clone()-ray.punto.clone()))
+                /self.normal.dot_product(&ray.direccion);
+            Some((ray.direccion.clone().into_point() * lambda + ray.punto.clone())-ray.punto.clone())
         }
         fn surface_normal(&self,_: &Point3D)->Vector3D{
             self.normal.clone()

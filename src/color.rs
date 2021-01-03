@@ -1,4 +1,5 @@
 use std::ops;
+use image::{Rgba,Pixel};
 #[derive(Clone,Debug)]
 pub struct Color{
     pub red: f64, //Quizás no sea necesario que sea un f32, evaluar después
@@ -40,6 +41,10 @@ impl Color{
             green: 1.0,
             blue: 1.0,
         }
+    }
+    pub fn to_rgba(self,a:u8)->Rgba<u8>{
+        let canales = self.to_rgb();
+        Rgba::from_channels(canales.0,canales.1,canales.2,a)
     }
 }
 impl ops::Mul for Color{
