@@ -59,3 +59,12 @@ impl ops::Mul<f64> for Color{
         Color::new(self.red * other, self.green * other, self.blue * other)
     }
 }
+impl ops::Add for Color{
+    type Output = Color;
+    fn add(mut self,other: Color)->Color{
+        self.red += other.red;
+        self.blue += other.blue;
+        self.green += other.green;
+        self
+    }
+}

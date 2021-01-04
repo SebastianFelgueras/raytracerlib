@@ -68,6 +68,27 @@ impl DirectionalLight{
     }
 }
 
+#[derive(Clone,Debug)]
+pub struct SphericalLight{
+    pub punto: Point3D,
+    pub color: Color,
+    pub intensidad: f64,
+}
+impl SphericalLight{
+    #[inline]
+    pub fn new(punto: Point3D,color:Color,intensidad:f64)->Self{
+        SphericalLight{
+            punto,
+            color,
+            intensidad, 
+        }
+    }
+}
+#[derive(Clone,Debug)]
+pub enum Light{
+    Directional(DirectionalLight),
+    Spherical(SphericalLight),
+}
 
 pub trait  SceneObject{
     ///Returns the wrapped intersection if the ray intersects the object
@@ -76,23 +97,49 @@ pub trait  SceneObject{
     fn intersection_point(&self,ray:&Ray)->Option<Point3D>;
     fn surface_normal(&self,hit_point: &Point3D)->Vector3D;
     fn color_at_intersection(&self,hit_point: &Point3D,scene: &Scene)->Color{
-        // CALCULO DE SOMBRAS
-        //Lo que se le suma al punto evita el shadow acne sobre los planos
-        let shadow_ray = Ray::new(hit_point.clone() + (self.surface_normal(&hit_point)*scene.shadow_bias).into_point(),-1.0 * scene.light_sources.direction.clone());
-        let light_intensity;
-        if scene.object_between(&shadow_ray){
-            light_intensity = 0.0; 
-        }else{
-            light_intensity = scene.light_sources.intensity;
+        let mut color = Color::new(0.0,0.0,0.0);
+        //INICIO CALCULO LUCES
+        for light in &scene.lights{
+            let direction;
+            let light_intensity;
+            let light_color; 
+            if let Light::Directional(luz) = light{
+                direction = luz.direction.clone();
+                let shadow_ray = Ray::new(hit_point.clone() + (self.surface_normal(&hit_point)*scene.shadow_bias).into_point(),-1.0 * direction.clone());          
+                //Lo que se le suma al punto evita el shadow acne sobre los planos
+                if scene.object_between(&shadow_ray){
+                    light_intensity = 0.0; 
+                }else{
+                    light_intensity = luz.intensity;
+                }
+                light_color = &luz.color;
+            }else if let Light::Spherical(luz) = light {
+                light_color = &luz.color;
+                direction = (hit_point.clone() - luz.punto.clone()).into_vector();
+                let shadow_ray = Ray::new(luz.punto.clone() + (self.surface_normal(&hit_point)*scene.shadow_bias).into_point(),direction.clone());          
+                let mut temp:f64 = luz.intensidad / (std::f64::consts::PI * 4.0 * direction.module().powi(2));
+                for punto in scene.object_between_with_point(&shadow_ray) {
+                    if (punto - luz.punto.clone()).module() < direction.module(){
+                        println!("hola");
+                        temp = 0.0; 
+                        break;
+                    }
+                }
+                light_intensity = temp;
+            }else{
+                unimplemented!();
+            }
+            if light_intensity == 0.0{
+                println!("cero");
+            }
+            let light_power = self.surface_normal(hit_point).dot_product(&(-1.0*direction.normalize())).max(0.0) * light_intensity;
+            let light_reflected = self.albedoo() / std::f64::consts::PI;
+            color = color + self.object_color() * light_color.clone() * light_power * light_reflected;
         }
-        // FIN DE CALCULO DE SOMBRAS
-        
-        let light = scene.light_sources.clone();
-        let light_power = self.surface_normal(hit_point).dot_product(&(-1.0*light.direction.clone().normalize())).max(0.0) * light_intensity;
-        let light_reflected = self.albedoo() / std::f64::consts::PI;
-        let mut color = self.object_color() * light.color.clone() * light_power * light_reflected;
+        //FIN CALCULO LUCES 
         color.clamp();
         color
+        
     }
     fn albedoo(&self)->f64;
     fn object_color(&self)->Color;

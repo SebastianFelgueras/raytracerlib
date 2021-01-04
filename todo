@@ -1,4 +1,1 @@
-ALGEBRA LINEAL
-    terminar de implementar point y sus operaciones con Vector3D
-    matrices
-RENDERIZADOR
+Por algun motivo no renderiza las sombras de las luces puntuales

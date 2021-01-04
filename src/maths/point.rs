@@ -25,12 +25,11 @@ impl Point3D{
 }
 impl ops::Sub for Point3D{
     type Output = Point3D;
-    fn sub(self,other:Self)->Self{
-        Point3D{
-            x: self.x - other.x,
-            y: self.y -other.y,
-            z: self.z - other.z,
-        }
+    fn sub(mut self,other:Self)->Self{
+        self.x -= other.x;
+        self.z -= other.z;
+        self.y -= other.y;
+        self
     }
 }
 impl Vector3 for Point3D{
