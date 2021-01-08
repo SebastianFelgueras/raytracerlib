@@ -46,6 +46,9 @@ impl Color{
         let canales = self.to_rgb();
         Rgba::from_channels(canales.0,canales.1,canales.2,a)
     }
+    pub fn from_rgba(rgba: Rgba<u8>)->Self{
+        Color::new(rgba[0] as f64 / 255.0, rgba[1] as f64 / 255.0, rgba[2] as f64 / 255.0)
+    }
 }
 impl ops::Mul for Color{
     type Output = Color;

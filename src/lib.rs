@@ -4,16 +4,18 @@
 pub mod maths;
 pub mod objects;
 pub mod color;
+pub mod textures;
 use maths::vector3::Vector3;
 use maths::point::Point3D;
 use objects::Ray;
 use image::{DynamicImage, GenericImage};
+pub use image;
 pub struct Scene{
     pub height: u32, //u32 porque eso es lo que exige imagebuffer como argumento
     pub widht: u32,
     pub lights: Vec<objects::Light>,
     pub objects_list: Vec<Box<dyn objects::SceneObject>>,
-    pub rendering_max_distance: usize,
+    pub max_reflections: usize,
     image_rendered: Option<DynamicImage>,
     shadow_bias: f64,
 }
@@ -26,7 +28,7 @@ impl Scene{
             widht: 720,
             lights: Vec::new(),
             objects_list: Vec::new(),
-            rendering_max_distance: 100,
+            max_reflections: 5,
             image_rendered: None,
             shadow_bias: 1e-13,
         }
@@ -81,15 +83,22 @@ impl Scene{
 #[cfg(test)]
 mod tests{
     use super::*;
-    use objects::{
-        objects::*,
-        DirectionalLight,
-        Light,
-        SphericalLight,
+    use crate::{
+        objects::{
+            objects::*,
+            DirectionalLight,
+            Light,
+            SphericalLight,
+        },
+        maths::{
+            point::Point3D,
+            vector3::Vector3D,
+        },
+        color::Color,
+        textures::{
+            Texture,
+        }
     };
-    use maths::point::Point3D;
-    use maths::vector3::Vector3D;
-    use color::Color;
     #[test]
     fn esfera_centrada() {
         let mut escena = Scene::new();
@@ -100,29 +109,38 @@ mod tests{
         escena.lights.push(
             Light::Spherical(
                 SphericalLight::new(
-                    Point3D::new(0.0, 6.0, -5.0), 
+                    Point3D::new(0.0, 6.0, -2.0), 
                     Color::new(0.3,0.25,0.09), 
                     20000.0,
                 )
             )
         );
-        escena.objects_list.push(Box::new(Sphere::new()));
-        escena.objects_list.push(Box::new(Sphere::new_with_coordinates(
-            Point3D::new(4.0, -4.0, -10.0),
+        escena.objects_list.push(Box::new(Sphere::new(
+            Point3D::new(0.0, 0.0, -5.0),
             2.0,
-            Color::new(1.0,0.0,0.0),
+            Texture::Texture(
+                image::open("checkerboard.png").unwrap()
+            ),
             0.5
         )));
-        escena.objects_list.push(Box::new(Sphere::new_with_coordinates(
+        escena.objects_list.push(Box::new(Sphere::new(
+            Point3D::new(4.0, -4.0, -10.0),
+            2.0,
+            Texture::SolidColor(Color::new(1.0,0.0,0.0)),
+            0.5
+        )));
+        escena.objects_list.push(Box::new(Sphere::new(
             Point3D::new(4.0, -2.0, -10.0),
             2.0,
-            Color::new(1.0,0.0,0.0),
+            Texture::SolidColor(Color::new(1.0,0.0,0.0)),
             0.5
         )));
         escena.objects_list.push(Box::new(Plane::new(
             Point3D::new(0.0,-5.0,0.0),
             Vector3D::new(0.0, 1.0, 0.0), 
-            Color::new(0.8,0.8,0.8),
+            Texture::Texture(
+                image::open("checkerboard.png").unwrap()
+            ),
             0.5
         )));
         escena.render();

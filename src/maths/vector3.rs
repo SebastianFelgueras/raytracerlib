@@ -144,6 +144,7 @@ impl Vector3 for Vector3D{
 #[cfg(test)]
 mod tests{
     use super::Vector3D;
+    use super::Vector3;
     #[test]
     fn add_substraction_comparison_escalar_multiplication(){
         if Vector3D::new(8.0, 66.0, 25.0)-Vector3D::new(9.0, -4.0,25.0)!=Vector3D::new(-1.0, 70.0, 0.0){
@@ -159,4 +160,16 @@ mod tests{
             panic!(format!("Product fail {:?}*{:?} = {:?}",Vector3D::new(8.0, 66.0, -25.0),Vector3D::new(-0.5, 0.0, -2.0),Vector3D::new(8.0, 66.0, -25.0) * Vector3D::new(-0.5, 0.0, -2.0)))
         }
     } 
+    #[test]
+    fn cross_product() {
+        let a = Vector3D::new(8.0, 66.0, 25.0);
+        let b = Vector3D::new(9.0, -4.0,25.0);
+        let c = Vector3D::new(1.0,0.0,1.0);
+        let ab = Vector3D::new(1750.0,25.0,-626.0);
+        let ac = Vector3D::new(66.0,17.0,-66.0);
+        assert_eq!(a.cross_product(&b),ab);
+        assert_eq!(b.cross_product(&a),-1.0*ab);
+        assert_eq!(a.cross_product(&c),ac);
+        assert_eq!(c.cross_product(&a),-1.0*ac)
+    }
 }
