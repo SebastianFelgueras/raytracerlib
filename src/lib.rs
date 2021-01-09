@@ -5,6 +5,7 @@ pub mod maths;
 pub mod objects;
 pub mod color;
 pub mod textures;
+pub mod material;
 use maths::vector3::Vector3;
 use maths::point::Point3D;
 use objects::Ray;
@@ -16,6 +17,7 @@ pub struct Scene{
     pub lights: Vec<objects::Light>,
     pub objects_list: Vec<Box<dyn objects::SceneObject>>,
     pub max_reflections: usize,
+    pub color_de_fondo: color::Color,
     image_rendered: Option<DynamicImage>,
     shadow_bias: f64,
 }
@@ -31,6 +33,7 @@ impl Scene{
             max_reflections: 5,
             image_rendered: None,
             shadow_bias: 1e-13,
+            color_de_fondo: color::Color::black(),
         }
     }
     pub fn render(&mut self){
@@ -44,7 +47,7 @@ impl Scene{
                         let hit_point = objeto.intersection_point(&rayo_actual).unwrap();
                         let hit_point_module = hit_point.module();
                         if hit_point_module<minimum_distance_to_intersection.0 || minimum_distance_to_intersection.1 {
-                            imagen.put_pixel(x, y, objeto.color_at_intersection(&hit_point,&self).to_rgba(255));
+                            imagen.put_pixel(x, y, objeto.color_at_intersection(&rayo_actual,&hit_point,&self,0).to_rgba(255));
                             minimum_distance_to_intersection.0 = hit_point_module;
                             minimum_distance_to_intersection.1 = false;
                         }
@@ -97,6 +100,10 @@ mod tests{
         color::Color,
         textures::{
             Texture,
+        },
+        material::{
+            Material,
+            MaterialType,
         }
     };
     #[test]
@@ -115,33 +122,57 @@ mod tests{
                 )
             )
         );
+        escena.objects_list.push(
+            Box::new(Sphere::new(
+                Point3D::new(0.0, 0.0, 2.1),
+                2.0,
+                Material::new( 
+                    Texture::SolidColor(Color::new(1.0,1.0,1.0)),
+                    0.5,
+                    MaterialType::Opaque
+                )
+            ))
+        );
         escena.objects_list.push(Box::new(Sphere::new(
             Point3D::new(0.0, 0.0, -5.0),
             2.0,
-            Texture::Texture(
-                image::open("checkerboard.png").unwrap()
-            ),
-            0.5
+            Material::new( 
+                Texture::SolidColor(Color::new(1.0,0.0,0.0)),
+                0.5,
+                MaterialType::Reflective{reflectivity: 0.5}
+            )
         )));
         escena.objects_list.push(Box::new(Sphere::new(
             Point3D::new(4.0, -4.0, -10.0),
             2.0,
-            Texture::SolidColor(Color::new(1.0,0.0,0.0)),
-            0.5
+            Material::new( 
+                Texture::Texture(
+                    image::open("checkerboard.png").unwrap()
+                ),
+                
+                0.5,
+                MaterialType::Opaque
+            )
         )));
         escena.objects_list.push(Box::new(Sphere::new(
             Point3D::new(4.0, -2.0, -10.0),
             2.0,
-            Texture::SolidColor(Color::new(1.0,0.0,0.0)),
-            0.5
+            Material::new( 
+                Texture::SolidColor(Color::new(1.0,0.0,0.0)),
+                0.5,
+                MaterialType::Opaque
+            )
         )));
         escena.objects_list.push(Box::new(Plane::new(
             Point3D::new(0.0,-5.0,0.0),
             Vector3D::new(0.0, 1.0, 0.0), 
-            Texture::Texture(
-                image::open("checkerboard.png").unwrap()
-            ),
-            0.5
+            Material::new( 
+                Texture::Texture(
+                    image::open("checkerboard.png").unwrap()
+                ),
+                0.5,
+                MaterialType::Reflective{reflectivity:0.6}
+            )
         )));
         escena.render();
         escena.unwrap_image().save("esfera_centrada.png").unwrap();

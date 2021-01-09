@@ -7,8 +7,8 @@ use crate::{
     color::Color,
     textures::{
         TextureCoordinates,
-        Texture,
-    },   
+    }, 
+    material::{Material,MaterialType},  
 };
 #[derive(Debug,Clone)]
 pub struct Ray{
@@ -46,6 +46,13 @@ impl Ray{
     #[inline]
     pub fn new_null()->Self{
         Ray::new(Point3D::new_zeros(),Vector3D::new_zeros())
+    }
+    #[inline]
+    pub fn reflection(&self,shadow_bias:f64,surface_normal:&Vector3D,origin: Point3D)->Self{
+        Ray::new(
+                origin + (surface_normal.clone() * shadow_bias).into_point(),
+                self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()
+            )
     }
 }
 
@@ -101,8 +108,40 @@ pub trait SceneObject{
     ///If the intersection point does not exists, it might be undefined behavior
     fn intersection_point(&self,ray:&Ray)->Option<Point3D>;
     fn surface_normal(&self,hit_point: &Point3D)->Vector3D;
-    fn color_at_intersection(&self,hit_point: &Point3D,scene: &Scene)->Color{
-        let mut color = Color::new(0.0,0.0,0.0);
+    fn color_at_intersection(&self,ray: &Ray,hit_point: &Point3D,scene: &Scene,current_recurtion: usize)->Color{
+        if current_recurtion == scene.max_reflections{
+            return Color::black();
+        }
+        let material: &Material = self.object_material();
+        match material.tipo{
+            MaterialType::Opaque=>return self.get_color(hit_point, scene),
+            MaterialType::Refractive=>unimplemented!(),
+            MaterialType::Reflective{reflectivity}=>{
+                let mut color = self.get_color(hit_point, scene);
+                if reflectivity > 0.0{ //si es = a cero es opaco 
+                    let mut temp = Color::black();
+                    let reflejo = ray.reflection(scene.shadow_bias,&self.surface_normal(hit_point),hit_point.clone());
+                    let mut minimum_distance_to_intersection = (0.0,true);
+                    for objeto in &scene.objects_list{
+                        if objeto.intersects(&reflejo){
+                            let hit_point = objeto.intersection_point(&reflejo).unwrap();
+                            let hit_point_module = hit_point.module();
+                            if hit_point_module<minimum_distance_to_intersection.0 || minimum_distance_to_intersection.1 {
+                                temp = objeto.color_at_intersection(&reflejo,&hit_point,scene,current_recurtion+1);
+                                minimum_distance_to_intersection.0 = hit_point_module;
+                                minimum_distance_to_intersection.1 = false;
+                            }
+                            
+                        }
+                    }
+                    color = color * (1.0-reflectivity) + temp * reflectivity;
+                }
+                return color;
+            }
+        }
+    }
+    fn get_color(&self,hit_point: &Point3D,scene: &Scene)->Color{
+        let mut color = Color::black();
         //INICIO CALCULO LUCES
         for light in &scene.lights{
             let direction;
@@ -135,17 +174,16 @@ pub trait SceneObject{
             }
             let coordinates = self.texture_coordinates(hit_point);
             let light_power = self.surface_normal(hit_point).dot_product(&(-1.0*direction.normalize())).max(0.0) * light_intensity;
-            let light_reflected = self.albedoo() / std::f64::consts::PI;
-            color = color + self.object_texture().color_at(coordinates) * light_color.clone() * light_power * light_reflected;
+            let light_reflected = self.object_material().albedoo / std::f64::consts::PI;
+            color = color + self.object_material().texture.color_at(coordinates) * light_color.clone() * light_power * light_reflected;
         }
         //FIN CALCULO LUCES 
         color.clamp();
         color
         
     }
-    fn object_texture(&self)->&Texture;
+    fn object_material(&self)->&Material;
     fn texture_coordinates(&self,hit_point: &Point3D)->TextureCoordinates;
-    fn albedoo(&self)->f64;
 }
 pub mod objects{
     use crate::{
@@ -158,8 +196,8 @@ pub mod objects{
         },
         textures::{
             TextureCoordinates,
-            Texture,
         },
+        material::Material,
     };
     use super::{
         SceneObject,
@@ -168,8 +206,7 @@ pub mod objects{
     pub struct Sphere{
         pub center: Point3D,
         pub radio: f64,
-        pub texture: Texture,
-        pub albedoo: f64,
+        pub material: Material,
     }
     impl SceneObject for Sphere{
         fn intersects(&self,ray: &Ray)->bool{
@@ -182,7 +219,16 @@ pub mod objects{
             if discriminante < 0.0 {
                 false
             }else{
-                true
+                let lambda1 = -aux+(discriminante.sqrt());
+                let lambda2 = -aux-(discriminante.sqrt());
+                if lambda1>lambda2 && lambda2>=0.0{
+                    true
+                }else{
+                    if lambda1<0.0{
+                        return false;
+                    }
+                    true
+                }  
             }
         }
         fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
@@ -192,7 +238,7 @@ pub mod objects{
                 if lambda1>lambda2 && lambda2>=0.0{
                     Some((lambda2 * ray.direccion.clone()).into_point() + ray.punto.clone())
                 }else{
-                    if !(lambda1>=0.0){
+                    if lambda1<0.0{
                         return None;
                     }
                     Some((lambda1 * ray.direccion.clone()).into_point() + ray.punto.clone())
@@ -201,26 +247,22 @@ pub mod objects{
         fn surface_normal(&self,hit_point: &Point3D)->Vector3D{
             hit_point.substract(&self.center).normalize()
         }
-        fn albedoo(&self)->f64{
-            self.albedoo
-        }
         fn texture_coordinates(&self,hit_point: &Point3D)->TextureCoordinates{
             let x = (1.0+hit_point.z.atan2(hit_point.x)/std::f64::consts::PI)*0.5; //declinacion
             let y = f64::acos(hit_point.y/self.radio)/std::f64::consts::PI;// altura
             TextureCoordinates::new(x,y)
         }
-        fn object_texture(&self)->&Texture{
-            &self.texture
+        fn object_material(&self)->&Material{
+            &self.material
         }
 
     }
     impl Sphere{
-        pub fn new(center:Point3D,radio:f64,texture: Texture,albedoo:f64)->Self{
+        pub fn new(center:Point3D,radio:f64,material: Material)->Self{
             Sphere{
                 center,
                 radio,
-                texture,
-                albedoo,
+                material,
             }
         }
     }
@@ -228,16 +270,14 @@ pub mod objects{
     pub struct Plane{
         pub punto: Point3D,
         pub normal: Vector3D,
-        pub texture: Texture,
-        pub albedoo: f64,
+        pub material: Material,
     }
     impl Plane{
-        pub fn new(punto: Point3D,normal: Vector3D, texture: Texture,albedoo: f64)->Plane{
+        pub fn new(punto: Point3D,normal: Vector3D, material: Material)->Plane{
             Plane{
                 punto,
                 normal,
-                texture,
-                albedoo
+                material,
             }
         }
     }
@@ -262,9 +302,6 @@ pub mod objects{
         fn surface_normal(&self,_: &Point3D)->Vector3D{
             self.normal.clone()
         } 
-        fn albedoo(&self)->f64{
-            self.albedoo
-        }
         fn texture_coordinates(&self,hit_point: &Point3D)->TextureCoordinates{
             //Sistema de coordenadas en el plano
             let mut eje1 = self.normal.cross_product(&Point3D::new(1.0,0.0,0.0)).normalize();
@@ -277,8 +314,8 @@ pub mod objects{
             let y = punto.dot_product(&eje2);
             TextureCoordinates::new(x,y)
         }
-        fn object_texture(&self)->&Texture{
-            &self.texture
+        fn object_material(&self)->&Material{
+            &self.material
         } 
     }
 }
