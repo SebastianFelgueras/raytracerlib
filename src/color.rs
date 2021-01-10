@@ -1,6 +1,7 @@
 use std::ops;
 use image::{Rgba,Pixel};
-#[derive(Clone,Debug)]
+use serde::{Serialize, Deserialize};
+#[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct Color{
     pub red: f64, //Quizás no sea necesario que sea un f32, evaluar después
     pub green: f64,

@@ -1,5 +1,6 @@
 use std::ops;
 use super::point::Point3D;
+use serde::{Serialize, Deserialize};
 ///Implements 3D mathematical operations (like dot product, cross product, etc) for objects
 pub trait Vector3{
     fn x(&self)->f64;
@@ -61,7 +62,7 @@ pub trait Vector3{
         Point3D::new(self.x(),self.y(),self.z())
     }
 }
-#[derive(PartialEq,Debug,Clone)]
+#[derive(PartialEq,Debug,Clone,Serialize,Deserialize)]
 ///A structure that represents a 3D vector and implements Vector3, its recomended to use it, it implements standard ops and PartialEq (consider that it is meaningless to consider one gretear than the other)
 pub struct Vector3D{
     x: f64,

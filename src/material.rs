@@ -1,13 +1,14 @@
 use crate::{
     textures::Texture,
 };
-#[derive(Clone)]
+use serde::{Serialize, Deserialize};
+#[derive(Clone,Serialize,Deserialize)]
 pub enum MaterialType{
     Opaque,
     Reflective{reflectivity: f64},
-    Refractive,
+    Refractive{refraction_index: f64, transparency: f64},
 }
-#[derive(Clone)]
+#[derive(Clone,Serialize,Deserialize)]
 pub struct Material{
     pub texture: Texture,
     pub albedoo: f64,

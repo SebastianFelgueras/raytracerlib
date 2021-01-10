@@ -1,6 +1,7 @@
 use std::ops;
+use serde::{Serialize, Deserialize};
 use super::vector3::{Vector3,Vector3D};
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct Point3D{
     pub x: f64,
     pub y: f64,

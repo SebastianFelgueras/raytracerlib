@@ -10,7 +10,8 @@ use crate::{
     }, 
     material::{Material,MaterialType},  
 };
-#[derive(Debug,Clone)]
+use serde::{Serialize, Deserialize};
+#[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct Ray{
     pub punto: Point3D,
     pub direccion: Vector3D,
@@ -54,10 +55,24 @@ impl Ray{
                 self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()
             )
     }
+    pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
+        let n = scene.indice_refraccion_medio / index;
+        let interno =1.0-(1.0-(surface_normal.dot_product(&self.direccion).abs() / (surface_normal.module() * self.direccion.module())).powi(2))*n.powi(2);
+        if interno < 0.0{
+            return None;
+        }
+        let director = n * (self.direccion.clone()+(self.direccion.dot_product(surface_normal).abs())*-1.0*surface_normal.clone()) - interno.sqrt() *-1.0* surface_normal.clone();
+        Some(Ray::new(hit_point.clone()+(surface_normal.clone() * scene.shadow_bias).into_point(),director))
+    }
 }
-
-
-#[derive(Debug,Clone)]
+// LA IDEA ES ELIMINARLO CUANDO SEA MAS VIABLE TRABAJAR CON TRAIT OBJECTS, QUE VUELVA A COMO AL COMIENZO
+//con serde como esta y los otros problemas que no permiten comparar trait objects, es muy dificil
+#[derive(Serialize,Deserialize)]
+pub enum Object{
+    Plane(objects::Plane),
+    Sphere(objects::Sphere),
+}
+#[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct DirectionalLight{
     pub color: Color,
     pub direction: Vector3D,
@@ -80,7 +95,7 @@ impl DirectionalLight{
     }
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct SphericalLight{
     pub punto: Point3D,
     pub color: Color,
@@ -96,16 +111,14 @@ impl SphericalLight{
         }
     }
 }
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Serialize,Deserialize)]
 pub enum Light{
     Directional(DirectionalLight),
     Spherical(SphericalLight),
 }
 
 pub trait SceneObject{
-    ///Returns the wrapped intersection if the ray intersects the object
-    fn intersects(&self,ray: &Ray)->bool;
-    ///If the intersection point does not exists, it might be undefined behavior
+    ///Returns the intersection point
     fn intersection_point(&self,ray:&Ray)->Option<Point3D>;
     fn surface_normal(&self,hit_point: &Point3D)->Vector3D;
     fn color_at_intersection(&self,ray: &Ray,hit_point: &Point3D,scene: &Scene,current_recurtion: usize)->Color{
@@ -115,26 +128,22 @@ pub trait SceneObject{
         let material: &Material = self.object_material();
         match material.tipo{
             MaterialType::Opaque=>return self.get_color(hit_point, scene),
-            MaterialType::Refractive=>unimplemented!(),
+            MaterialType::Refractive{refraction_index, transparency}=>{
+                let mut color = self.get_color(hit_point, scene)* (1.0-transparency);
+                if let Some(refractado) = ray.refraction(
+                        &scene,
+                        &self.surface_normal(&hit_point),
+                        refraction_index,
+                        &hit_point){
+                    color = color +scene.ray_caster(&refractado, current_recurtion).unwrap_or(scene.color_de_fondo.clone())*transparency;
+                }
+                return color;
+            },
             MaterialType::Reflective{reflectivity}=>{
                 let mut color = self.get_color(hit_point, scene);
                 if reflectivity > 0.0{ //si es = a cero es opaco 
-                    let mut temp = Color::black();
                     let reflejo = ray.reflection(scene.shadow_bias,&self.surface_normal(hit_point),hit_point.clone());
-                    let mut minimum_distance_to_intersection = (0.0,true);
-                    for objeto in &scene.objects_list{
-                        if objeto.intersects(&reflejo){
-                            let hit_point = objeto.intersection_point(&reflejo).unwrap();
-                            let hit_point_module = hit_point.module();
-                            if hit_point_module<minimum_distance_to_intersection.0 || minimum_distance_to_intersection.1 {
-                                temp = objeto.color_at_intersection(&reflejo,&hit_point,scene,current_recurtion+1);
-                                minimum_distance_to_intersection.0 = hit_point_module;
-                                minimum_distance_to_intersection.1 = false;
-                            }
-                            
-                        }
-                    }
-                    color = color * (1.0-reflectivity) + temp * reflectivity;
+                    color = color * (1.0-reflectivity) + scene.ray_caster(&reflejo,current_recurtion).unwrap_or(scene.color_de_fondo.clone()) * reflectivity;
                 }
                 return color;
             }
@@ -203,46 +212,35 @@ pub mod objects{
         SceneObject,
         Ray,
     };
+    use serde::{Serialize, Deserialize};
+    #[derive(Serialize,Deserialize)]
     pub struct Sphere{
         pub center: Point3D,
         pub radio: f64,
         pub material: Material,
     }
     impl SceneObject for Sphere{
-        fn intersects(&self,ray: &Ray)->bool{
+        fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
             //Como uso trait objects, esta fue la mejor solucion que encontré para evitar que marque sombra en sus propias intersecciones
             if ((ray.punto.clone()-self.center.clone()).module() - self.radio).abs() < 1e-6{
-                return false;
+                return None;
             }
             let aux = ray.direccion.clone().normalize().dot_product(&(ray.punto.clone() - self.center.clone()));
             let discriminante = aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2));
             if discriminante < 0.0 {
-                false
+                return None
             }else{
                 let lambda1 = -aux+(discriminante.sqrt());
                 let lambda2 = -aux-(discriminante.sqrt());
                 if lambda1>lambda2 && lambda2>=0.0{
-                    true
-                }else{
-                    if lambda1<0.0{
-                        return false;
-                    }
-                    true
-                }  
-            }
-        }
-        fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
-                let aux = ray.direccion.clone().normalize().dot_product(&(ray.punto.clone() - self.center.clone()));
-                let lambda1 = -aux+(aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2))).sqrt();
-                let lambda2 = -aux-(aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2))).sqrt();
-                if lambda1>lambda2 && lambda2>=0.0{
-                    Some((lambda2 * ray.direccion.clone()).into_point() + ray.punto.clone())
+                    return Some((lambda2 * ray.direccion.clone()).into_point() + ray.punto.clone())
                 }else{
                     if lambda1<0.0{
                         return None;
                     }
-                    Some((lambda1 * ray.direccion.clone()).into_point() + ray.punto.clone())
-                }
+                    return Some((lambda1 * ray.direccion.clone()).into_point() + ray.punto.clone())
+                }  
+            }             
         }
         fn surface_normal(&self,hit_point: &Point3D)->Vector3D{
             hit_point.substract(&self.center).normalize()
@@ -266,7 +264,7 @@ pub mod objects{
             }
         }
     }
-
+    #[derive(Serialize,Deserialize)]
     pub struct Plane{
         pub punto: Point3D,
         pub normal: Vector3D,
@@ -282,22 +280,17 @@ pub mod objects{
         }
     }
     impl SceneObject for Plane{
-        fn intersects(&self,ray: &Ray)->bool{
+        fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
             if ray.direccion.dot_product(&self.normal).abs() < 1e-6{ //es epsilon
-                false
+                return None
             }else{
                 let lambda = self.normal.dot_product(&(self.punto.clone()-ray.punto.clone()))
                 /self.normal.dot_product(&ray.direccion);
                 if lambda <= 0.0{
-                    return false
+                    return None
                 }
-                true
-            }
-        }
-        fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
-            let lambda = self.normal.dot_product(&(self.punto.clone()-ray.punto.clone()))
-                /self.normal.dot_product(&ray.direccion);
-            Some((ray.direccion.clone().into_point() * lambda + ray.punto.clone())-ray.punto.clone())
+                return Some((ray.direccion.clone().into_point() * lambda + ray.punto.clone())-ray.punto.clone())
+            }   
         }
         fn surface_normal(&self,_: &Point3D)->Vector3D{
             self.normal.clone()
