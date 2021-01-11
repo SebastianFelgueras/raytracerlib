@@ -6,7 +6,7 @@ use image::{
     GenericImageView,
 };
 use serde::{
-    Serialize, Deserialize,
+    Serialize, Deserialize,Deserializer
 };
 pub struct TextureCoordinates{
     pub x: f64,
@@ -41,9 +41,6 @@ impl Texture{
         match self{
             Texture::SolidColor(valor)=>valor.clone(),
             Texture::Texture(valor)=>{
-                if let None = valor.texture {
-                    
-                }
                 if let Some(imagen) = &valor.texture{
                     fn wrap(val: f64, bound: u32)->u32{
                         let signed_bound = bound as i32;
@@ -74,14 +71,69 @@ impl Texture{
         })
     }
 }
-#[derive(Clone,Serialize,Deserialize)]
+#[derive(Clone,Serialize)]
 pub struct TextureData{
-    pub path: String,
+    path: String,
     #[serde(skip)]
-    #[serde(default = "texture_deserializer")]
-    pub texture: Option<DynamicImage>,
+    texture: Option<DynamicImage>,
 }
-#[inline]
-pub fn texture_deserializer()->Option<DynamicImage>{
-    None
+use std::fmt;
+
+use serde::de::{self, Visitor, SeqAccess, MapAccess};
+
+impl<'de> Deserialize<'de> for TextureData {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {Path}
+        struct DurationVisitor;
+        
+        impl<'de> Visitor<'de> for DurationVisitor {
+            type Value = TextureData;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct TextureData")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<TextureData, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let path = seq.next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                Ok(TextureData{
+                    texture: Some(image::open(&path).unwrap()),
+                    path,
+                })
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<TextureData, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut path = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Path => {
+                            if path.is_some() {
+                                return Err(de::Error::duplicate_field("secs"));
+                            }
+                            path = Some(map.next_value()?);
+                        }
+                    }
+                }
+                let path = path.ok_or_else(|| de::Error::missing_field("secs"))?;
+                Ok(TextureData{
+                    texture: Some(image::open(&path).unwrap()),
+                    path,
+                })
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &["path"];
+        deserializer.deserialize_struct("TextureData", FIELDS, DurationVisitor)
+    }
 }

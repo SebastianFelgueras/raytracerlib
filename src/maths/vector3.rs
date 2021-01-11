@@ -58,6 +58,7 @@ pub trait Vector3{
     fn substract<T: Vector3>(&self,vector: &T)->Vector3D{
         self.addition(&vector.escalar_product(-1.0))
     }
+    #[inline]
     fn into_point(&self)->Point3D{
         Point3D::new(self.x(),self.y(),self.z())
     }

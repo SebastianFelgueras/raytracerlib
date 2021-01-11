@@ -23,6 +23,16 @@ impl Point3D{
     pub fn into_vector(self)->Vector3D{
         Vector3D::new_from_point(self)
     }
+    pub fn normalize(mut self)->Self{
+        let largo = self.module();
+        if largo == 0.0{
+            return self;
+        }
+        self.x /= largo;
+        self.y /= largo;
+        self.z /= largo; 
+        self
+    }
 }
 impl ops::Sub for Point3D{
     type Output = Point3D;

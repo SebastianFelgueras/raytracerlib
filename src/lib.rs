@@ -6,10 +6,10 @@ pub mod objects;
 pub mod color;
 pub mod textures;
 pub mod material;
-use maths::vector3::Vector3;
 use maths::point::Point3D;
+use maths::vector3::Vector3;
 use color::Color;
-use objects::Ray;
+use objects::{Ray,SceneObject};
 use image::{DynamicImage, GenericImage};
 pub use image;
 #[derive(Serialize,Deserialize)]
@@ -52,7 +52,7 @@ impl Scene{
         imagen
     }
     fn object_between(&self,ray: &Ray)->bool{
-        for objeto in self.parse_array(){
+        for objeto in &self.objects_list{
             if objeto.intersection_point(&ray).is_some() {
                  return true;
             }
@@ -61,7 +61,7 @@ impl Scene{
     }
     fn object_between_with_point(&self,ray:&Ray)->Vec<Point3D>{
         let mut intersecciones = Vec::new();
-        for objeto in &self.parse_array(){
+        for objeto in &self.objects_list{
             if let Some(valor) = objeto.intersection_point(&ray){
                 intersecciones.push(valor);
             }
@@ -69,7 +69,7 @@ impl Scene{
         intersecciones
     }
     //esto es ineficiente pero me evita tener que reescribir mucho codigo
-    #[inline]
+    /*#[inline]
     fn parse_array(&self)->Vec<Box<&dyn objects::SceneObject>>{
         let mut vector: Vec<Box<&dyn objects::SceneObject>> = Vec::new();
         for objeto in &self.objects_list{
@@ -79,11 +79,11 @@ impl Scene{
             }
         }
         vector
-    }
+    }*/
     fn ray_caster(&self,rayo: &Ray,current_iteration: usize)->Option<Color>{
         let mut temp = None;
         let mut minimum_distance_to_intersection = (0.0,true);
-        for objeto in self.parse_array(){
+        for objeto in &self.objects_list{
             if let Some(hit_point) = objeto.intersection_point(&rayo){
                 let hit_point_module = hit_point.module();
                 if hit_point_module<minimum_distance_to_intersection.0 || minimum_distance_to_intersection.1 {
@@ -155,7 +155,7 @@ mod tests{
             Material::new( 
                 Texture::SolidColor(Color::new(1.0,0.0,0.0)),
                 0.5,
-                MaterialType::Refractive{refraction_index: 1.5,transparency:0.6}
+                MaterialType::Reflective{reflectivity:0.6}
             )
         )));
         escena.objects_list.push(Object::Sphere(Sphere::new(
@@ -289,5 +289,58 @@ mod tests{
             )
         )));
         escena.render().save("texturas.png").unwrap();
+    }
+    #[test]
+    fn luz_puntual() {
+        let mut escena = Scene::new();
+        escena.widht = 800;
+        escena.height = 800;
+        escena.lights.push(
+            Light::Spherical(
+                SphericalLight::new(
+                    Point3D::new(0.0, 6.0, -5.0), 
+                    Color::new_white(), 
+                    2000000.0,
+                )
+            )
+        );
+        escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(0.0, 0.0, -5.0),
+            2.0,
+            Material::new( 
+                Texture::SolidColor(Color::new(1.0,0.0,0.0)),
+                0.5,
+                MaterialType::Opaque
+            )
+        )));
+        escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(4.0, -4.0, -10.0),
+            2.0,
+            Material::new( 
+                Texture::new_texture("checkerboard.png".to_string()),
+                0.5,
+                MaterialType::Opaque
+            )
+        )));
+        escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(4.0, -2.0, -10.0),
+            2.0,
+            Material::new( 
+                Texture::SolidColor(Color::new(1.0,0.0,0.0)),
+                0.5,
+                MaterialType::Reflective{reflectivity: 0.5}
+                
+            )
+        )));
+        escena.objects_list.push(Object::Plane(Plane::new(
+            Point3D::new(0.0,-5.0,0.0),
+            Vector3D::new(0.0, 1.0, 0.0), 
+            Material::new( 
+                Texture::new_texture("checkerboard.png".to_string()),
+                0.5,
+                MaterialType::Opaque
+            )
+        )));
+        escena.render().save("luz_puntual.png").unwrap();
     }
 }

@@ -84,6 +84,36 @@ pub enum Object{
     Plane(objects::Plane),
     Sphere(objects::Sphere),
 }
+impl SceneObject for Object{
+    #[inline]
+    fn intersection_point(&self,ray:&Ray)->Option<Point3D>{
+        match self{
+            Object::Plane(valor)=>valor.intersection_point(&ray),
+            Object::Sphere(valor)=>valor.intersection_point(&ray),
+        }
+    }
+    #[inline]
+    fn surface_normal(&self,hit_point: &Point3D)->Vector3D{
+        match self{
+            Object::Plane(valor)=>valor.surface_normal(&hit_point),
+            Object::Sphere(valor)=>valor.surface_normal(&hit_point),
+        }
+    }
+    #[inline]
+    fn object_material(&self)->&Material{
+        match self{
+            Object::Plane(valor)=>valor.object_material(),
+            Object::Sphere(valor)=>valor.object_material(),
+        }
+    }
+    #[inline]
+    fn texture_coordinates(&self,hit_point: &Point3D)->TextureCoordinates{
+        match self{
+            Object::Plane(valor)=>valor.texture_coordinates(&hit_point),
+            Object::Sphere(valor)=>valor.texture_coordinates(&hit_point),
+        }
+    }
+}
 #[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct DirectionalLight{
     pub color: Color,
@@ -180,7 +210,7 @@ pub trait SceneObject{
             }else if let Light::Spherical(luz) = light {
                 light_color = &luz.color;
                 direction = (hit_point.clone() - luz.punto.clone()).into_vector();
-                let shadow_ray = Ray::new(luz.punto.clone()/* + (self.surface_normal(&hit_point)*scene.shadow_bias).into_point()*/,direction.clone());          
+                let shadow_ray = Ray::new(luz.punto.clone()+ (self.surface_normal(&hit_point)*scene.shadow_bias).into_point(),direction.clone());          
                 let mut temp:f64 = luz.intensidad / (std::f64::consts::PI * 4.0 * direction.module().powi(2));
                 for punto in scene.object_between_with_point(&shadow_ray) {
                     if (punto - luz.punto.clone()).module() < direction.module(){
@@ -232,10 +262,6 @@ pub mod objects{
     }
     impl SceneObject for Sphere{
         fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
-            //Como uso trait objects, esta fue la mejor solucion que encontré para evitar que marque sombra en sus propias intersecciones
-            if ((ray.punto.clone()-self.center.clone()).module() - self.radio).abs() < 1e-6{
-                return None;
-            }
             let aux = ray.direccion.clone().normalize().dot_product(&(ray.punto.clone() - self.center.clone()));
             let discriminante = aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2));
             if discriminante < 0.0 {
@@ -251,7 +277,7 @@ pub mod objects{
                     }
                     return Some((lambda1 * ray.direccion.clone()).into_point() + ray.punto.clone())
                 }  
-            }             
+            }         
         }
         fn surface_normal(&self,hit_point: &Point3D)->Vector3D{
             hit_point.substract(&self.center).normalize()

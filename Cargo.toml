@@ -11,9 +11,10 @@ lto = true
 image = "0.23.12"
 serde = {version = "1", features = ["derive"]}
 
-#[dev-dependencies]
-#criterion = "0.3"
+[dev-dependencies]
+criterion = "0.3"
+serde_json = "1.0"
 
-#[[bench]]
-#name = "benchmarks"
-#harness = false
+[[bench]]
+name = "benchmarks"
+harness = false
