@@ -1,7 +1,6 @@
 arreglar refracciones
 correecciones de efecto gama
 Por algun motivo no renderiza las sombras de las luces puntuales
-Las texturas en las esferas no andan bien si no estan en el plano x = 0 me parece
 Reactivar el benchmarking
 Hacer multhithreading, se esta poniendo lento
-abrochar los cinturones que va a acelerar aka multhithreading, interseccion directamente que devuelva un punto, etc
+abrochar los cinturones que va a acelerar aka multhithreading,los array de trait objects que no sean generados en el momento, etc

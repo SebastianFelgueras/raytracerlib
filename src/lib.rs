@@ -189,20 +189,76 @@ mod tests{
         escena.render().save("esfera_centrada.png").unwrap();
     }
     #[test]
-    #[ignore]
     fn refraccion_solamente(){
         let mut escena = Scene::new();
         escena.color_de_fondo = Color::from_rgb(135, 206, 235);
         escena.widht = 800;
         escena.height = 800;
-        escena.lights.push(Light::Directional(DirectionalLight::new_values(Color::new(0.1,0.1, 0.2),Vector3D::new(0.5, -1.0, 0.25),20.0)));
+        escena.lights.push(Light::Directional(DirectionalLight::new_values(Color::new_white(),Vector3D::new(0.5, -1.0, 0.25),20.0)));
         escena.objects_list.push(Object::Sphere(Sphere::new(
             Point3D::new(0.0, 0.0, -5.0),
             2.0,
             Material::new( 
                 Texture::SolidColor(Color::new(1.0,0.0,0.0)),
                 0.5,
-                MaterialType::Refractive{refraction_index: 0.5,transparency:0.6}
+                MaterialType::Refractive{refraction_index: 1.5,transparency:0.6}
+            )
+        )));
+        escena.objects_list.push(Object::Plane(Plane::new(
+            Point3D::new(0.0,-3.0,0.0),
+            Vector3D::new(0.0, 1.0, 0.0), 
+            Material::new( 
+                Texture::SolidColor(Color::new(0.9,0.9,0.9)),
+                0.5,
+                MaterialType::Refractive{refraction_index: 1.8,transparency: 0.6},
+            )
+        )));
+        escena.objects_list.push(Object::Plane(Plane::new(
+            Point3D::new(0.0,-5.0,0.0),
+            Vector3D::new(0.0, 1.0, 0.0), 
+            Material::new( 
+                Texture::new_texture(
+                    "checkerboard.png".to_string()
+                ),
+                0.5,
+                MaterialType::Opaque,
+            )
+        )));
+        escena.render().save("esfera_refractada.png").unwrap();
+    }
+    #[test]
+    fn prueba_texturas() {
+        let mut escena = Scene::new();
+        escena.color_de_fondo = Color::from_rgb(135, 206, 235);
+        escena.widht = 800;
+        escena.height = 800;
+        escena.lights.push(Light::Directional(DirectionalLight::new_values(Color::new_white(),Vector3D::new(-1.0, -1.0, -1.0),20.0)));
+        escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(0.0, 0.0, -5.0),
+            2.0,
+            Material::new( 
+                Texture::new_texture("checkerboard.png".to_string()),
+                    0.5,
+                    MaterialType::Opaque
+            )
+        )));
+        escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(4.0, -4.0, -10.0),
+            2.0,
+            Material::new( 
+                Texture::new_texture("checkerboard.png".to_string()),
+                0.5,
+                MaterialType::Opaque
+            )
+        )));
+        escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(4.0, -2.0, -10.0),
+            2.0,
+            Material::new( 
+                Texture::new_texture("checkerboard.png".to_string()),
+                    0.5,
+                    MaterialType::Opaque
+                
             )
         )));
         escena.objects_list.push(Object::Plane(Plane::new(
@@ -210,10 +266,28 @@ mod tests{
             Vector3D::new(0.0, 1.0, 0.0), 
             Material::new( 
                 Texture::new_texture("checkerboard.png".to_string()),
-                0.5,
-                MaterialType::Opaque,
+                    0.5,
+                    MaterialType::Opaque
             )
         )));
-        escena.render().save("esfera_refractada.png").unwrap();
+        escena.objects_list.push(Object::Plane(Plane::new(
+            Point3D::new(0.0,-5.0,-15.0),
+            Vector3D::new(0.0, 0.0, 1.0), 
+            Material::new( 
+                Texture::new_texture("checkerboard.png".to_string()),
+                    0.5,
+                    MaterialType::Opaque
+            )
+        )));
+        escena.objects_list.push(Object::Plane(Plane::new(
+            Point3D::new(-4.0,0.0,0.0),
+            Vector3D::new(1.0, 0.0, 0.0), 
+            Material::new( 
+                Texture::new_texture("checkerboard.png".to_string()),
+                    0.5,
+                    MaterialType::Opaque
+            )
+        )));
+        escena.render().save("texturas.png").unwrap();
     }
 }

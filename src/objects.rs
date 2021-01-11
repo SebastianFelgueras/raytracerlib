@@ -56,13 +56,25 @@ impl Ray{
             )
     }
     pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
-        let n = scene.indice_refraccion_medio / index;
-        let interno =1.0-(1.0-(surface_normal.dot_product(&self.direccion).abs() / (surface_normal.module() * self.direccion.module())).powi(2))*n.powi(2);
-        if interno < 0.0{
+        //Ley de Snell: ni * sen(theta_i) = nt * sen(theta_t)
+        let n;
+        let incidente = self.direccion.clone().normalize();
+        let mut normal = surface_normal.clone().normalize();
+        let mut dot_product = incidente.dot_product(&normal);
+        if dot_product < 0.0{
+            dot_product *=-1.0;
+            n = scene.indice_refraccion_medio / index;
+        }else{
+            normal = -1.0 * normal;
+            n = index/scene.indice_refraccion_medio;
+        }
+        
+        let argumento_sqrt = 1.0- (n*n * (1.0 -dot_product * dot_product) );
+        if argumento_sqrt < 0.0{
             return None;
         }
-        let director = n * (self.direccion.clone()+(self.direccion.dot_product(surface_normal).abs())*-1.0*surface_normal.clone()) - interno.sqrt() *-1.0* surface_normal.clone();
-        Some(Ray::new(hit_point.clone()+(surface_normal.clone() * scene.shadow_bias).into_point(),director))
+        let transmitido = n * incidente.clone() + (n * dot_product-argumento_sqrt.sqrt())*normal.clone();
+        Some(Ray::new(hit_point.clone() + (normal * scene.shadow_bias).into_point(),transmitido))
     }
 }
 // LA IDEA ES ELIMINARLO CUANDO SEA MAS VIABLE TRABAJAR CON TRAIT OBJECTS, QUE VUELVA A COMO AL COMIENZO
@@ -125,8 +137,7 @@ pub trait SceneObject{
         if current_recurtion == scene.max_reflections{
             return Color::black();
         }
-        let material: &Material = self.object_material();
-        match material.tipo{
+        match self.object_material().tipo{
             MaterialType::Opaque=>return self.get_color(hit_point, scene),
             MaterialType::Refractive{refraction_index, transparency}=>{
                 let mut color = self.get_color(hit_point, scene)* (1.0-transparency);
@@ -246,8 +257,9 @@ pub mod objects{
             hit_point.substract(&self.center).normalize()
         }
         fn texture_coordinates(&self,hit_point: &Point3D)->TextureCoordinates{
-            let x = (1.0+hit_point.z.atan2(hit_point.x)/std::f64::consts::PI)*0.5; //declinacion
-            let y = f64::acos(hit_point.y/self.radio)/std::f64::consts::PI;// altura
+            let punto = hit_point.clone() - self.center.clone();
+            let x = (1.0+punto.z.atan2(punto.x)/std::f64::consts::PI)*0.5; //declinacion
+            let y = f64::acos(punto.y/self.radio)/std::f64::consts::PI;// altura
             TextureCoordinates::new(x,y)
         }
         fn object_material(&self)->&Material{
