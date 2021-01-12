@@ -71,15 +71,23 @@ impl Scene{
             for modulo_asociado in 0..n_threads{
                 let imagen_transfer = Arc::clone(&imagen);
                 threads_handlers.push(s.spawn(move |_|{
+                    let mut cache: Vec<image::Rgba<u8>> = Vec::with_capacity(self.widht as usize);
                     let mut y:u32 = modulo_asociado;
                     while y < self.height{
                         for x in 0..self.widht{
                             let rayo_actual = Ray::new_camera_ray(x,y,&self);
                             match self.ray_caster(&rayo_actual,0){
-                                Some(valor)=>imagen_transfer.lock().unwrap().put_pixel(x, y, valor.to_rgba(255)),
-                                None=>imagen_transfer.lock().unwrap().put_pixel(x, y, self.color_de_fondo.clone().to_rgba(255)),
+                                Some(valor)=>cache.push(valor.to_rgba(255)),
+                                None=>cache.push(self.color_de_fondo.clone().to_rgba(255)),
                             }
                         }
+                        let mut mutex_lock = imagen_transfer.lock().unwrap();
+                        let mut x = 0;
+                        for pixel in &cache{
+                            mutex_lock.put_pixel(x,y,*pixel);
+                            x += 1;
+                        }
+                        cache.clear();
                         y += n_threads;
                     }
                 }));

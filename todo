@@ -2,3 +2,4 @@ arreglar refracciones
 correecciones de efecto gama
 Por algun motivo no renderiza las sombras de las luces puntuales
 añadir benchamrks
+Esta en alrededor de 76 ms por imagen, tratar de reducirlo a 41.66 al menos, para poder renderizar 24 frames por segundo a 800x800
