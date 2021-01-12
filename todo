@@ -2,5 +2,3 @@ arreglar refracciones
 correecciones de efecto gama
 Por algun motivo no renderiza las sombras de las luces puntuales
 añadir benchamrks
-Hacer multhithreading, se esta poniendo lento
-abrochar los cinturones que va a acelerar aka multhithreading,los array de trait objects que no sean generados en el momento, etc

@@ -21,7 +21,13 @@ pub struct Scene{
     pub max_reflections: usize,
     pub color_de_fondo: color::Color,
     pub indice_refraccion_medio: f64,
+    pub numero_threads: Nthreads,
     shadow_bias: f64,
+}
+#[derive(Serialize,Deserialize)]
+pub enum Nthreads{
+    Auto,
+    Defined(usize),
 }
 impl Scene{
     ///Creates a new scene with the source of light in the sky, above the camera. By default, it's rendering in a low definition
@@ -36,20 +42,56 @@ impl Scene{
             shadow_bias: 1e-13,
             indice_refraccion_medio: 1.0,
             color_de_fondo: color::Color::black(),
+            numero_threads: Nthreads::Auto,
         }
     }
-    pub fn render(&mut self)->DynamicImage{
-        let mut imagen = DynamicImage::new_rgb8(self.widht,self.height);
-        for x in 0..self.widht{
-            for y in 0..self.height{
-                let rayo_actual = Ray::new_camera_ray(x,y,&self);
-                match self.ray_caster(&rayo_actual,0){
-                    Some(valor)=>imagen.put_pixel(x, y, valor.to_rgba(255)),
-                    None=>imagen.put_pixel(x, y, self.color_de_fondo.clone().to_rgba(255)),
-                }
+    pub fn render(&self)->DynamicImage{
+        if let Nthreads::Defined(mut numero) = self.numero_threads {
+            if numero == 0{
+                numero = 1;
             }
+            self.internal_renderer(numero)
+        }else{
+            self.internal_renderer(num_cpus::get())
         }
-        imagen
+    }
+    #[inline] //Solamente la llama el renderer, se justifica
+    fn internal_renderer(&self,n_threads: usize)->DynamicImage{
+        use std::{
+            sync::{
+                Arc,
+                Mutex,
+            }
+        };
+        use crossbeam_utils::thread;
+        let imagen = Arc::new(Mutex::new(DynamicImage::new_rgba8(self.widht,self.height)));
+        let n_threads = n_threads as u32;
+        thread::scope(|s|{
+            let mut threads_handlers = Vec::new();
+            for modulo_asociado in 0..n_threads{
+                let imagen_transfer = Arc::clone(&imagen);
+                threads_handlers.push(s.spawn(move |_|{
+                    let mut y:u32 = modulo_asociado;
+                    while y < self.height{
+                        for x in 0..self.widht{
+                            let rayo_actual = Ray::new_camera_ray(x,y,&self);
+                            match self.ray_caster(&rayo_actual,0){
+                                Some(valor)=>imagen_transfer.lock().unwrap().put_pixel(x, y, valor.to_rgba(255)),
+                                None=>imagen_transfer.lock().unwrap().put_pixel(x, y, self.color_de_fondo.clone().to_rgba(255)),
+                            }
+                        }
+                        y += n_threads;
+                    }
+                }));
+            }
+            for handler in threads_handlers{
+                handler.join().unwrap();
+            }
+        }).unwrap();
+        match Arc::try_unwrap(imagen){
+            Ok(valor)=>return valor.into_inner().unwrap(),
+            Err(_)=>panic!("No deberia haber mas referencias al Arc de la imagen"),
+        }
     }
     fn object_between(&self,ray: &Ray)->bool{
         for objeto in &self.objects_list{
@@ -68,18 +110,6 @@ impl Scene{
         }
         intersecciones
     }
-    //esto es ineficiente pero me evita tener que reescribir mucho codigo
-    /*#[inline]
-    fn parse_array(&self)->Vec<Box<&dyn objects::SceneObject>>{
-        let mut vector: Vec<Box<&dyn objects::SceneObject>> = Vec::new();
-        for objeto in &self.objects_list{
-            match objeto{
-                objects::Object::Plane(valor)=>vector.push(Box::new(valor)),
-                objects::Object::Sphere(valor)=>vector.push(Box::new(valor)),
-            }
-        }
-        vector
-    }*/
     fn ray_caster(&self,rayo: &Ray,current_iteration: usize)->Option<Color>{
         let mut temp = None;
         let mut minimum_distance_to_intersection = (0.0,true);
