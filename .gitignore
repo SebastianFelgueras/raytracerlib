@@ -1,3 +1,6 @@
 /target
 Cargo.lock
-esfera_centrada.png
+/raytracer/target
+/raytracer/wallpaper.json
+/raytracer/checkerboard.png
+/raytracer/wallpaper.png

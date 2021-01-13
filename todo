@@ -1,5 +1,8 @@
-arreglar refracciones
-correecciones de efecto gama
+Las refracciones estan raras y andan HORRIBLE
 Por algun motivo no renderiza las sombras de las luces puntuales
 añadir benchamrks
+hacer una interfaz (¿En python?) para crear los json mas facilmente
+intentar usar try_lock en vez de lock para el mutex a ver si aumenta el rendimiento
 Esta en alrededor de 76 ms por imagen, tratar de reducirlo a 41.66 al menos, para poder renderizar 24 frames por segundo a 800x800
+Añadir objetos geometricos
+Permitir renderizar videos con movimientos de los objetos en la escena

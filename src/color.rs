@@ -1,11 +1,20 @@
 use std::ops;
 use image::{Rgba,Pixel};
 use serde::{Serialize, Deserialize};
+const GAMMA_CORRCTION_VALUE:f64 = 2.2;
 #[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct Color{
     pub red: f64, //Quizás no sea necesario que sea un f32, evaluar después
     pub green: f64,
     pub blue: f64,
+}
+#[inline]
+fn gamma_decode(linear:f64)->f64{
+    linear.powf(GAMMA_CORRCTION_VALUE)
+}
+#[inline]
+fn gamma_encode(linear:f64)->f64{
+    linear.powf(1.0 / GAMMA_CORRCTION_VALUE)   
 }
 impl Color{
     #[inline]
@@ -23,7 +32,7 @@ impl Color{
     #[inline]
     pub fn to_rgb(mut self)->(u8,u8,u8){
         self.clamp();
-        ((self.red * 255.0) as u8,(self.green * 255.0) as u8,(self.blue * 255.0) as u8)
+        ((gamma_encode(self.red) * 255.0) as u8,(gamma_encode(self.green) * 255.0) as u8,(gamma_encode(self.blue) * 255.0) as u8)
     }
     #[inline]
     pub fn to_r(&self)->u8{
@@ -66,7 +75,7 @@ impl Color{
     }
     #[inline]
     pub fn from_rgba(rgba: Rgba<u8>)->Self{
-        Color::new(rgba[0] as f64 / 255.0, rgba[1] as f64 / 255.0, rgba[2] as f64 / 255.0)
+        Color::new(gamma_decode(rgba[0] as f64 / 255.0), gamma_decode(rgba[1] as f64 / 255.0), gamma_decode(rgba[2] as f64 / 255.0))
     }
 }
 impl ops::Mul for Color{

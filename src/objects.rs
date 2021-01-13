@@ -15,7 +15,6 @@ use serde::{Serialize, Deserialize};
 pub struct Ray{
     pub punto: Point3D,
     pub direccion: Vector3D,
-    //pub intensidad: f64,
 }
 impl Ray{
     #[inline]
@@ -56,25 +55,33 @@ impl Ray{
             )
     }
     pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
-        //Ley de Snell: ni * sen(theta_i) = nt * sen(theta_t)
-        let n;
-        let incidente = self.direccion.clone().normalize();
-        let mut normal = surface_normal.clone().normalize();
-        let mut dot_product = incidente.dot_product(&normal);
-        if dot_product < 0.0{
-            dot_product *=-1.0;
-            n = scene.indice_refraccion_medio / index;
-        }else{
-            normal = -1.0 * normal;
-            n = index/scene.indice_refraccion_medio;
+        let intersection = hit_point;
+        let normal = surface_normal.clone().normalize();
+        let mut ref_n = normal.clone();
+        let mut eta_t = index;
+        let incident = self.direccion.clone().normalize();
+        let mut eta_i = scene.indice_refraccion_medio;
+        let mut i_dot_n = incident.dot_product(&normal);
+        if i_dot_n < 0.0 {
+            //Outside the surface
+            i_dot_n = -i_dot_n;
+        } else {
+            //Inside the surface; invert the normal and swap the indices of refraction
+            ref_n = -1.0 * normal;
+            eta_t = scene.indice_refraccion_medio;
+            eta_i = index;
         }
-        
-        let argumento_sqrt = 1.0- (n*n * (1.0 -dot_product * dot_product) );
-        if argumento_sqrt < 0.0{
-            return None;
+
+        let eta = eta_i / eta_t;
+        let k = 1.0 - (eta * eta) * (1.0 - i_dot_n * i_dot_n);
+        if k < 0.0 {
+            None
+        } else {
+            Some(Ray {
+                punto: intersection.clone() + (ref_n.clone() * -scene.shadow_bias).into_point(),
+                direccion: (incident + i_dot_n * ref_n.clone()) * eta - ref_n * k.sqrt(),
+            })
         }
-        let transmitido = n * incidente.clone() + (n * dot_product-argumento_sqrt.sqrt())*normal.clone();
-        Some(Ray::new(hit_point.clone() + (normal * scene.shadow_bias).into_point(),transmitido))
     }
 }
 // LA IDEA ES ELIMINARLO CUANDO SEA MAS VIABLE TRABAJAR CON TRAIT OBJECTS, QUE VUELVA A COMO AL COMIENZO
@@ -158,7 +165,6 @@ pub enum Light{
     Directional(DirectionalLight),
     Spherical(SphericalLight),
 }
-
 pub trait SceneObject{
     ///Returns the intersection point
     fn intersection_point(&self,ray:&Ray)->Option<Point3D>;

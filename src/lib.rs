@@ -30,7 +30,7 @@ pub enum Nthreads{
     Defined(usize),
 }
 impl Scene{
-    ///Creates a new scene with the source of light in the sky, above the camera. By default, it's rendering in a low definition
+    ///Creates a new scene with the source of light in the sky, above the camera. By default, it's rendering in a low definition and uses the number of processor's logical cores as the number of threads
     #[inline]
     pub fn new()->Self{
         Scene{
@@ -232,14 +232,14 @@ mod tests{
         escena.color_de_fondo = Color::from_rgb(135, 206, 235);
         escena.widht = 800;
         escena.height = 800;
-        escena.lights.push(Light::Directional(DirectionalLight::new_values(Color::new_white(),Vector3D::new(0.5, -1.0, 0.25),20.0)));
+        escena.lights.push(Light::Directional(DirectionalLight::new_values(Color::new_white(),Vector3D::new(0.5, -1.0, 0.25),200.0)));
         escena.objects_list.push(Object::Sphere(Sphere::new(
             Point3D::new(0.0, 0.0, -5.0),
             2.0,
             Material::new( 
-                Texture::SolidColor(Color::new(1.0,0.0,0.0)),
+                Texture::SolidColor(Color::new(1.05,0.0,0.0)),
                 0.5,
-                MaterialType::Refractive{refraction_index: 1.5,transparency:0.6}
+                MaterialType::Refractive{refraction_index: 1.1,transparency:0.6}
             )
         )));
         escena.objects_list.push(Object::Plane(Plane::new(
@@ -248,7 +248,7 @@ mod tests{
             Material::new( 
                 Texture::SolidColor(Color::new(0.9,0.9,0.9)),
                 0.5,
-                MaterialType::Refractive{refraction_index: 1.8,transparency: 0.6},
+                MaterialType::Refractive{refraction_index: 1.02,transparency: 0.8},
             )
         )));
         escena.objects_list.push(Object::Plane(Plane::new(
