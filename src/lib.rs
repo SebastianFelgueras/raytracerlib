@@ -13,6 +13,8 @@ use objects::{Ray,SceneObject};
 use image::{DynamicImage, GenericImage};
 pub use image;
 #[derive(Serialize,Deserialize)]
+///Notice that gamma correction is disabled by default because it makes the images to render much slow and because
+/// in some cases images might look awkward with corrected gamma.
 pub struct Scene{
     pub height: u32, //u32 porque eso es lo que exige imagebuffer como argumento
     pub widht: u32,
@@ -22,6 +24,7 @@ pub struct Scene{
     pub color_de_fondo: color::Color,
     pub indice_refraccion_medio: f64,
     pub numero_threads: Nthreads,
+    pub gamma_correction: bool,
     shadow_bias: f64,
 }
 #[derive(Serialize,Deserialize)]
@@ -43,6 +46,7 @@ impl Scene{
             indice_refraccion_medio: 1.0,
             color_de_fondo: color::Color::black(),
             numero_threads: Nthreads::Auto,
+            gamma_correction: false,
         }
     }
     pub fn render(&self)->DynamicImage{
@@ -77,8 +81,8 @@ impl Scene{
                         for x in 0..self.widht{
                             let rayo_actual = Ray::new_camera_ray(x,y,&self);
                             match self.ray_caster(&rayo_actual,0){
-                                Some(valor)=>cache.push(valor.to_rgba(255)),
-                                None=>cache.push(self.color_de_fondo.clone().to_rgba(255)),
+                                Some(valor)=>cache.push(valor.to_rgba(255,self.gamma_correction)),
+                                None=>cache.push(self.color_de_fondo.clone().to_rgba(255,self.gamma_correction)),
                             }
                         }
                         let mut mutex_lock = imagen_transfer.lock().unwrap();
@@ -237,20 +241,29 @@ mod tests{
             Point3D::new(0.0, 0.0, -5.0),
             2.0,
             Material::new( 
-                Texture::SolidColor(Color::new(1.05,0.0,0.0)),
+                Texture::SolidColor(Color::new_white()),
                 0.5,
-                MaterialType::Refractive{refraction_index: 1.1,transparency:0.6}
+                MaterialType::Refractive{refraction_index: 1.3,transparency:1.0}
             )
         )));
-        escena.objects_list.push(Object::Plane(Plane::new(
+        escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(0.0, 0.0, -10.0),
+            2.0,
+            Material::new( 
+                Texture::SolidColor(Color::black()),
+                0.5,
+                MaterialType::Opaque
+            )
+        )));
+        /*escena.objects_list.push(Object::Plane(Plane::new(
             Point3D::new(0.0,-3.0,0.0),
             Vector3D::new(0.0, 1.0, 0.0), 
             Material::new( 
                 Texture::SolidColor(Color::new(0.9,0.9,0.9)),
                 0.5,
-                MaterialType::Refractive{refraction_index: 1.02,transparency: 0.8},
+                MaterialType::Refractive{refraction_index: 1.5,transparency: 0.8},
             )
-        )));
+        )));*/
         escena.objects_list.push(Object::Plane(Plane::new(
             Point3D::new(0.0,-5.0,0.0),
             Vector3D::new(0.0, 1.0, 0.0), 
@@ -262,6 +275,7 @@ mod tests{
                 MaterialType::Opaque,
             )
         )));
+        std::fs::write("prueba",serde_json::to_string(&escena).unwrap()).unwrap();
         escena.render().save("esfera_refractada.png").unwrap();
     }
     #[test]

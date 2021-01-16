@@ -37,7 +37,7 @@ impl Texture{
             valor.texture = Some(image::open(&valor.path).expect(&format!("Error when loading texture: \"{}\"",valor.path)));
         }
     }
-    pub fn color_at(&self,coordinates: TextureCoordinates)->Color{
+    pub fn color_at(&self,coordinates: TextureCoordinates,gamma_correction: bool)->Color{
         match self{
             Texture::SolidColor(valor)=>valor.clone(),
             Texture::Texture(valor)=>{
@@ -56,7 +56,7 @@ impl Texture{
                         imagen.get_pixel(
                             wrap(coordinates.x, imagen.width()),
                             wrap(coordinates.y,imagen.height())
-                        )
+                        ),gamma_correction
                     )
                 }else{
                     unreachable!();

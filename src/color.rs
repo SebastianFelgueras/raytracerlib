@@ -30,9 +30,13 @@ impl Color{
         Color::new(r as f64/255.0, g as f64/255.0, b as f64/255.0)
     }
     #[inline]
-    pub fn to_rgb(mut self)->(u8,u8,u8){
+    pub fn to_rgb(mut self,gamma_correction: bool)->(u8,u8,u8){
         self.clamp();
-        ((gamma_encode(self.red) * 255.0) as u8,(gamma_encode(self.green) * 255.0) as u8,(gamma_encode(self.blue) * 255.0) as u8)
+        if gamma_correction{
+            ((gamma_encode(self.red) * 255.0) as u8,(gamma_encode(self.green) * 255.0) as u8,(gamma_encode(self.blue) * 255.0) as u8)
+        }else{
+            ((self.red * 255.0) as u8,(self.green * 255.0) as u8,(self.blue * 255.0) as u8)
+        }
     }
     #[inline]
     pub fn to_r(&self)->u8{
@@ -69,13 +73,17 @@ impl Color{
         }
     }
     #[inline]
-    pub fn to_rgba(self,a:u8)->Rgba<u8>{
-        let canales = self.to_rgb();
+    pub fn to_rgba(self,a:u8,gamma_correction: bool)->Rgba<u8>{
+        let canales = self.to_rgb(gamma_correction);
         Rgba::from_channels(canales.0,canales.1,canales.2,a)
     }
     #[inline]
-    pub fn from_rgba(rgba: Rgba<u8>)->Self{
-        Color::new(gamma_decode(rgba[0] as f64 / 255.0), gamma_decode(rgba[1] as f64 / 255.0), gamma_decode(rgba[2] as f64 / 255.0))
+    pub fn from_rgba(rgba: Rgba<u8>,gamma_correction: bool)->Self{
+        if gamma_correction{
+            Color::new(gamma_decode(rgba[0] as f64 / 255.0), gamma_decode(rgba[1] as f64 / 255.0), gamma_decode(rgba[2] as f64 / 255.0))
+        }else{
+            Color::new(rgba[0] as f64 / 255.0, rgba[1] as f64 / 255.0, rgba[2] as f64 / 255.0)
+        }
     }
 }
 impl ops::Mul for Color{

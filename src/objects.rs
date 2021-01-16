@@ -55,33 +55,30 @@ impl Ray{
             )
     }
     pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
-        let intersection = hit_point;
-        let normal = surface_normal.clone().normalize();
-        let mut ref_n = normal.clone();
-        let mut eta_t = index;
-        let incident = self.direccion.clone().normalize();
-        let mut eta_i = scene.indice_refraccion_medio;
-        let mut i_dot_n = incident.dot_product(&normal);
-        if i_dot_n < 0.0 {
-            //Outside the surface
-            i_dot_n = -i_dot_n;
-        } else {
-            //Inside the surface; invert the normal and swap the indices of refraction
-            ref_n = -1.0 * normal;
-            eta_t = scene.indice_refraccion_medio;
-            eta_i = index;
+        let mut normal = surface_normal.clone().normalize();
+        let incidente = self.direccion.clone().normalize();
+        let mut indice_incidente = scene.indice_refraccion_medio;
+        let mut indice_transmitido = index;
+        let mut dot = incidente.dot_product(&normal);
+        if dot < 0.0{
+            dot = -dot;
+        }else{
+            normal = -1.0 * normal;
+            indice_incidente = index;
+            indice_transmitido = scene.indice_refraccion_medio;
         }
-
-        let eta = eta_i / eta_t;
-        let k = 1.0 - (eta * eta) * (1.0 - i_dot_n * i_dot_n);
-        if k < 0.0 {
-            None
-        } else {
-            Some(Ray {
-                punto: intersection.clone() + (ref_n.clone() * -scene.shadow_bias).into_point(),
-                direccion: (incident + i_dot_n * ref_n.clone()) * eta - ref_n * k.sqrt(),
-            })
+        let ir = dot.acos().sin() * indice_incidente/indice_transmitido;
+        if ir.abs() > 1.0{
+            return None;
         }
+        let nr = ir.asin().cos();
+        let nr_vec = -1.0 * normal.clone();
+        let ir_vec = normal.cross_product(&normal.cross_product(&incidente));
+        let direccion = (nr/nr_vec.module()) * nr_vec + (ir/ir_vec.module()) * ir_vec;
+        Some(Ray{
+            punto: hit_point.clone() + (direccion.clone() * scene.shadow_bias).into_point(),
+            direccion, 
+        })
     }
 }
 // LA IDEA ES ELIMINARLO CUANDO SEA MAS VIABLE TRABAJAR CON TRAIT OBJECTS, QUE VUELVA A COMO AL COMIENZO
@@ -231,7 +228,7 @@ pub trait SceneObject{
             let coordinates = self.texture_coordinates(hit_point);
             let light_power = self.surface_normal(hit_point).dot_product(&(-1.0*direction.normalize())).max(0.0) * light_intensity;
             let light_reflected = self.object_material().albedoo / std::f64::consts::PI;
-            color = color + self.object_material().texture.color_at(coordinates) * light_color.clone() * light_power * light_reflected;
+            color = color + self.object_material().texture.color_at(coordinates,scene.gamma_correction) * light_color.clone() * light_power * light_reflected;
         }
         //FIN CALCULO LUCES 
         color.clamp();
@@ -268,6 +265,10 @@ pub mod objects{
     }
     impl SceneObject for Sphere{
         fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
+            //evita intersecciones con sigo mismo
+            /*if ((ray.punto.clone() - self.center.clone()).module() - self.radio).abs() <1e-6 {
+                return None;
+            }*/
             let aux = ray.direccion.clone().normalize().dot_product(&(ray.punto.clone() - self.center.clone()));
             let discriminante = aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2));
             if discriminante < 0.0 {
@@ -356,3 +357,36 @@ pub mod objects{
         } 
     }
 }
+/*#[cfg(test)]
+mod tests{
+    use super::*;
+    use crate::maths::{
+        vector3::Vector3D,
+        point::Point3D,
+    };
+    #[test]
+    fn refraccion(){
+        unimplemented!();
+        let rayos = vec![
+            Ray{
+                direccion: Vector3D::new(4.0,5.0,8.0),
+                punto: Point3D::new_zeros(),
+            },
+            Ray{
+                direccion: Vector3D::new(-5.552,9.356,-7.0),
+                punto: Point3D::new_zeros(),
+            },
+            Ray{
+                direccion: Vector3D::new(1.0,-0.6,-4.0),
+                punto: Point3D::new_zeros(),
+            },
+            Ray{
+                direccion: Vector3D::new(8.0,9.0,85.0),
+                punto: Point3D::new_zeros(),
+            },
+        ];
+        for rayo in rayos{
+            rayo.refraction();
+        }
+    }
+}*/

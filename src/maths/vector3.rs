@@ -174,4 +174,19 @@ mod tests{
         assert_eq!(a.cross_product(&c),ac);
         assert_eq!(c.cross_product(&a),-1.0*ac)
     }
+    #[test]
+    fn normalize(){
+        let vectores = vec![
+            Vector3D::new(66.0,17.0,-66.0),
+            Vector3D::new(1750.0,25.0,-626.0),
+            Vector3D::new(1.0,0.0,1.0),
+            Vector3D::new(8.0, 66.0, 25.0),
+            Vector3D::new(9.0, -4.0,25.0),
+        ];
+        for vec in vectores{
+            if vec.normalize().module()-1.0 > 1e-8{
+                panic!();
+            }
+        }
+    }
 }
