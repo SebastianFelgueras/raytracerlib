@@ -203,7 +203,6 @@ pub trait SceneObject{
     }
     fn get_color(&self,hit_point: &Point3D,scene: &Scene)->Color{
         let mut color = Color::black();
-        //INICIO CALCULO LUCES
         'lights_loop: for light in &scene.lights{
             let direction;
             let light_intensity;
@@ -220,15 +219,17 @@ pub trait SceneObject{
                     light_color = &luz.color;
                 },
                 Light::Spherical(luz) =>{
-                    light_color = &luz.color;
                     direction = (hit_point.clone() - luz.punto.clone()).into_vector();
                     let direction_module = direction.module();
                     let shadow_ray = Ray::new(luz.punto.clone(),direction.clone());          
                     for punto in scene.object_between_with_point(&shadow_ray) {
-                        if (punto - luz.punto.clone()).module() < direction_module{
+                        let coso = (punto - luz.punto.clone()).module();
+                        if coso < direction_module 
+                        && !((coso - direction_module).abs() < scene.shadow_bias){ //esta linea evita shadow bias
                             continue 'lights_loop;
                         }
                     }
+                    light_color = &luz.color;
                     light_intensity = luz.intensidad / (std::f64::consts::PI * 4.0 * direction_module * direction_module);
                 },
             }
@@ -237,10 +238,8 @@ pub trait SceneObject{
             let light_reflected = self.object_material().albedoo / std::f64::consts::PI;
             color = color + self.object_material().texture.color_at(coordinates,scene.gamma_correction) * light_color.clone() * light_power * light_reflected;
         }
-        //FIN CALCULO LUCES 
         color.clamp();
         color
-        
     }
     fn object_material(&self)->&Material;
     fn texture_coordinates(&self,hit_point: &Point3D)->TextureCoordinates;
@@ -272,10 +271,6 @@ pub mod objects{
     }
     impl SceneObject for Sphere{
         fn intersection_point(&self,ray: &Ray)->Option<Point3D>{
-            //evita intersecciones con sigo mismo
-            /*if ((ray.punto.clone() - self.center.clone()).module() - self.radio).abs() <1e-6 {
-                return None;
-            }*/
             let direccion = ray.direction();
             let aux = direccion.dot_product(&(ray.punto.clone() - self.center.clone()));
             let discriminante = aux*aux-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio * self.radio);
@@ -284,14 +279,20 @@ pub mod objects{
             }else{
                 let lambda1 = -aux+(discriminante.sqrt());
                 let lambda2 = -aux-(discriminante.sqrt());
+                //let punto;
                 if lambda1>lambda2 && lambda2>=0.0{
-                    return Some((lambda2 * direccion.clone()).into_point() + ray.punto.clone())
+                    /*punto =*/ return Some((lambda2 * direccion.clone()).into_point() + ray.punto.clone());
                 }else{
                     if lambda1<0.0{
                         return None;
                     }
-                    return Some((lambda1 * direccion.clone()).into_point() + ray.punto.clone())
-                }  
+                    /*punto =*/ return Some((lambda1 * direccion.clone()).into_point() + ray.punto.clone());
+                }
+                //evita intersecciones consigo mismo
+                /*if punto.compare(&ray.punto,1e-6){
+                    return None;
+                }
+                Some(punto)*/  
             }         
         }
         fn surface_normal(&self,hit_point: &Point3D)->Vector3D{
@@ -306,7 +307,6 @@ pub mod objects{
         fn object_material(&self)->&Material{
             &self.material
         }
-
     }
     impl Sphere{
         pub fn new(center:Point3D,radio:f64,material: Material)->Self{

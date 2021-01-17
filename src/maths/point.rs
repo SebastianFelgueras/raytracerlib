@@ -33,6 +33,13 @@ impl Point3D{
         self.z /= largo; 
         self
     }
+    #[inline]
+    pub fn compare(&self,point:&Self,epsilon: f64)->bool{
+        if (self.x - point.x).abs() < epsilon && (self.y - point.y).abs() < epsilon &&(self.z - point.z).abs() < epsilon{
+            return true;
+        }
+        false
+    }
 }
 impl ops::Sub for Point3D{
     type Output = Point3D;

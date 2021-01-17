@@ -42,7 +42,7 @@ impl Scene{
             lights: Vec::new(),
             objects_list: Vec::new(),
             max_reflections: 5,
-            shadow_bias: 1e-13,
+            shadow_bias: 1e-6, //este valor evita shadow bias en luces puntuales
             indice_refraccion_medio: 1.0,
             color_de_fondo: color::Color::black(),
             numero_threads: Nthreads::Auto,
@@ -80,10 +80,11 @@ impl Scene{
                     while y < self.height{
                         for x in 0..self.widht{
                             let rayo_actual = Ray::new_camera_ray(x,y,&self);
-                            match self.ray_caster(&rayo_actual,0){
-                                Some(valor)=>cache.push(valor.to_rgba(255,self.gamma_correction)),
-                                None=>cache.push(self.color_de_fondo.clone().to_rgba(255,self.gamma_correction)),
-                            }
+                            cache.push(
+                                self.ray_caster(&rayo_actual,0)
+                                .unwrap_or(self.color_de_fondo.clone())
+                                .to_rgba(255,self.gamma_correction)
+                            );
                         }
                         let mut mutex_lock = imagen_transfer.lock().unwrap();
                         let mut x = 0;
