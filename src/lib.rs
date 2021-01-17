@@ -350,7 +350,7 @@ mod tests{
         escena.lights.push(
             Light::Spherical(
                 SphericalLight::new(
-                    Point3D::new(0.0, 6.0, -5.0), 
+                    Point3D::new(0.0, 5.0, 0.0), 
                     Color::new_white(), 
                     2000000.0,
                 )

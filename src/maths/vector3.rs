@@ -16,7 +16,7 @@ pub trait Vector3{
     }
     #[inline]
     fn module(&self)->f64{
-        (self.x().powi(2)+self.y().powi(2)+self.z().powi(2)).sqrt()
+        (self.x() * self.x()+self.y()* self.y()+self.z()*self.z()).sqrt()
     }
     #[inline]
     fn is_orthogonal<T: Vector3>(&self,vector: &T)->bool{

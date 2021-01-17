@@ -12,24 +12,24 @@ use crate::{
 };
 use serde::{Serialize, Deserialize};
 #[derive(Debug,Clone,Serialize,Deserialize)]
+///Ray's direction is guaranteed to be normalized
 pub struct Ray{
     pub punto: Point3D,
-    pub direccion: Vector3D,
+    direccion: Vector3D,
 }
 impl Ray{
     #[inline]
     pub fn new(point: Point3D, direction: Vector3D)->Self{
         Ray{
             punto: point,
-            direccion: direction,
-            //intensidad: 0.0,
+            direccion: direction.normalize(),
         }
     }
     #[inline]
     pub fn new_from_points(point1: Point3D,point2: Point3D)->Self{
         Ray{
             punto: point1.clone(),
-            direccion: Vector3D::new_from_point(point2 - point1),
+            direccion: Vector3D::new_from_point(point2 - point1).normalize(),
            // intensidad: 0.0,
         }
     }
@@ -51,12 +51,12 @@ impl Ray{
     pub fn reflection(&self,shadow_bias:f64,surface_normal:&Vector3D,origin: Point3D)->Self{
         Ray::new(
                 origin + (surface_normal.clone() * shadow_bias).into_point(),
-                self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()
+                (self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()).normalize()
             )
     }
     pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
         let mut normal = surface_normal.clone().normalize();
-        let incidente = self.direccion.clone().normalize();
+        let incidente = self.direccion.clone();
         let mut indice_incidente = scene.indice_refraccion_medio;
         let mut indice_transmitido = index;
         let mut dot = incidente.dot_product(&normal);
@@ -77,8 +77,16 @@ impl Ray{
         let direccion = (nr/nr_vec.module()) * nr_vec + (ir/ir_vec.module()) * ir_vec;
         Some(Ray{
             punto: hit_point.clone() + (direccion.clone() * scene.shadow_bias).into_point(),
-            direccion, 
+            direccion: direccion.normalize(), 
         })
+    }
+    #[inline]
+    pub fn direction(&self)->&Vector3D{
+        &self.direccion
+    }
+    #[inline]
+    pub fn set_direction(&mut self, direction: Vector3D){
+        self.direccion = direction.normalize();
     }
 }
 // LA IDEA ES ELIMINARLO CUANDO SEA MAS VIABLE TRABAJAR CON TRAIT OBJECTS, QUE VUELVA A COMO AL COMIENZO
@@ -196,34 +204,33 @@ pub trait SceneObject{
     fn get_color(&self,hit_point: &Point3D,scene: &Scene)->Color{
         let mut color = Color::black();
         //INICIO CALCULO LUCES
-        for light in &scene.lights{
+        'lights_loop: for light in &scene.lights{
             let direction;
             let light_intensity;
             let light_color; 
-            if let Light::Directional(luz) = light{
-                direction = luz.direction.clone();
-                let shadow_ray = Ray::new(hit_point.clone() + (self.surface_normal(&hit_point)*scene.shadow_bias).into_point(),-1.0 * direction.clone());          
-                //Lo que se le suma al punto evita el shadow acne sobre los planos
-                if scene.object_between(&shadow_ray){
-                    light_intensity = 0.0; 
-                }else{
-                    light_intensity = luz.intensity;
-                }
-                light_color = &luz.color;
-            }else if let Light::Spherical(luz) = light {
-                light_color = &luz.color;
-                direction = (hit_point.clone() - luz.punto.clone()).into_vector();
-                let shadow_ray = Ray::new(luz.punto.clone()+ (self.surface_normal(&hit_point)*scene.shadow_bias).into_point(),direction.clone());          
-                let mut temp:f64 = luz.intensidad / (std::f64::consts::PI * 4.0 * direction.module().powi(2));
-                for punto in scene.object_between_with_point(&shadow_ray) {
-                    if (punto - luz.punto.clone()).module() < direction.module(){
-                        temp = 0.0; 
-                        break;
+            match light{
+                Light::Directional(luz) =>{
+                    direction = luz.direction.clone();
+                    let shadow_ray = Ray::new(hit_point.clone() + (-1.0 * direction.clone()*scene.shadow_bias).into_point(),-1.0 * direction.clone());          
+                    //Lo que se le suma al punto evita el shadow acne sobre los planos
+                    if scene.object_between(&shadow_ray){
+                        continue 'lights_loop;
                     }
-                }
-                light_intensity = temp;
-            }else{
-                unimplemented!();
+                    light_intensity = luz.intensity;
+                    light_color = &luz.color;
+                },
+                Light::Spherical(luz) =>{
+                    light_color = &luz.color;
+                    direction = (hit_point.clone() - luz.punto.clone()).into_vector();
+                    let direction_module = direction.module();
+                    let shadow_ray = Ray::new(luz.punto.clone(),direction.clone());          
+                    for punto in scene.object_between_with_point(&shadow_ray) {
+                        if (punto - luz.punto.clone()).module() < direction_module{
+                            continue 'lights_loop;
+                        }
+                    }
+                    light_intensity = luz.intensidad / (std::f64::consts::PI * 4.0 * direction_module * direction_module);
+                },
             }
             let coordinates = self.texture_coordinates(hit_point);
             let light_power = self.surface_normal(hit_point).dot_product(&(-1.0*direction.normalize())).max(0.0) * light_intensity;
@@ -269,20 +276,21 @@ pub mod objects{
             /*if ((ray.punto.clone() - self.center.clone()).module() - self.radio).abs() <1e-6 {
                 return None;
             }*/
-            let aux = ray.direccion.clone().normalize().dot_product(&(ray.punto.clone() - self.center.clone()));
-            let discriminante = aux.powi(2)-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio.powi(2));
+            let direccion = ray.direction();
+            let aux = direccion.dot_product(&(ray.punto.clone() - self.center.clone()));
+            let discriminante = aux*aux-((ray.punto.clone()-self.center.clone()).module().powi(2)-self.radio * self.radio);
             if discriminante < 0.0 {
                 return None
             }else{
                 let lambda1 = -aux+(discriminante.sqrt());
                 let lambda2 = -aux-(discriminante.sqrt());
                 if lambda1>lambda2 && lambda2>=0.0{
-                    return Some((lambda2 * ray.direccion.clone()).into_point() + ray.punto.clone())
+                    return Some((lambda2 * direccion.clone()).into_point() + ray.punto.clone())
                 }else{
                     if lambda1<0.0{
                         return None;
                     }
-                    return Some((lambda1 * ray.direccion.clone()).into_point() + ray.punto.clone())
+                    return Some((lambda1 * direccion.clone()).into_point() + ray.punto.clone())
                 }  
             }         
         }
