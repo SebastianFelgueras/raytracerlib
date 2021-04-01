@@ -4,6 +4,13 @@ Cargo.lock
 /raytracer/wallpaper.json
 /raytracer/checkerboard.png
 /raytracer/wallpaper.png
-prueba
+prueba.json
+puntual.json
+texturas.json
+esfera_centrada.json
 /raytracer/prueba
 /raytracer/prueba.png
+esfera_centrada.png
+esfera_refractada.png
+texturas.png
+*.png

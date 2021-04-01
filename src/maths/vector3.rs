@@ -159,7 +159,7 @@ mod tests{
             panic!("Escalar product fail")
         }
         if Vector3D::new(8.0, 66.0, -25.0) * Vector3D::new(-0.5, 0.0, -2.0) != Vector3D::new(-4.0, 0.0, 50.0){
-            panic!(format!("Product fail {:?}*{:?} = {:?}",Vector3D::new(8.0, 66.0, -25.0),Vector3D::new(-0.5, 0.0, -2.0),Vector3D::new(8.0, 66.0, -25.0) * Vector3D::new(-0.5, 0.0, -2.0)))
+            panic!("Product fail {:?}*{:?} = {:?}",Vector3D::new(8.0, 66.0, -25.0),Vector3D::new(-0.5, 0.0, -2.0),Vector3D::new(8.0, 66.0, -25.0) * Vector3D::new(-0.5, 0.0, -2.0))
         }
     } 
     #[test]

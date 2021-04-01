@@ -40,7 +40,7 @@ impl Ray{
             Vector3D::new(
                 ((x as f64+0.5)/ scene.widht as f64)*2.0 -1.0,
                 1.0-((y as f64+0.5)/scene.height as f64)*2.0,
-                -1.0).normalize()
+                -1.0)
             ) //Notese que el 1.0- resto en y es porque la convención para formatos de imágen es y para abajo
     }
     #[inline]
@@ -51,22 +51,37 @@ impl Ray{
     pub fn reflection(&self,shadow_bias:f64,surface_normal:&Vector3D,origin: Point3D)->Self{
         Ray::new(
                 origin + (surface_normal.clone() * shadow_bias).into_point(),
-                (self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()).normalize()
+                self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()
             )
     }
     pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
         let mut normal = surface_normal.clone().normalize();
-        let incidente = self.direccion.clone();
+        let incidente = self.direction().clone();
         let mut indice_incidente = scene.indice_refraccion_medio;
         let mut indice_transmitido = index;
-        let mut dot = incidente.dot_product(&normal);
+        let mut dot = normal.dot_product(&incidente);
         if dot < 0.0{
-            dot = -dot;
-        }else{
             normal = -1.0 * normal;
+            dot = normal.dot_product(&incidente);
             indice_incidente = index;
             indice_transmitido = scene.indice_refraccion_medio;
         }
+        let n = indice_incidente/indice_transmitido;
+        let cross = incidente.cross_product(&normal);
+        let seno_de_incidente_normal = cross.module();
+        let seno_refractado_normal = seno_de_incidente_normal * n;
+        let angulo_refractado_normal = seno_refractado_normal.asin();
+        let coseno_refractado = angulo_refractado_normal.cos();
+        let componente_normal = -1.0 * coseno_refractado *normal.clone();
+        //cross NO ESTA NORMALIZADO TODAVIA
+        let mut horizontal = cross.cross_product(&normal).normalize();
+        if !(horizontal.dot_product(&incidente).acos() > std::f64::consts::FRAC_PI_2){
+            horizontal = -1.0 * horizontal;
+        }
+        let componente_horizontal = (std::f64::consts::FRAC_PI_2 - angulo_refractado_normal).cos() * horizontal;
+        let direccion_refractado = componente_horizontal + componente_normal;
+        Some(Ray::new(hit_point.clone() + (1e-6 * direccion_refractado.clone()).into_point(),direccion_refractado))
+        /*
         let ir = dot.acos().sin() * indice_incidente/indice_transmitido;
         if ir.abs() > 1.0{
             return None;
@@ -74,11 +89,24 @@ impl Ray{
         let nr = ir.asin().cos();
         let nr_vec = -1.0 * normal.clone();
         let ir_vec = normal.cross_product(&normal.cross_product(&incidente));
-        let direccion = (nr/nr_vec.module()) * nr_vec + (ir/ir_vec.module()) * ir_vec;
+        let direccion = ((nr/nr_vec.module()) * nr_vec + (ir/ir_vec.module()) * ir_vec).normalize();
+        Some(Ray::new(
+            hit_point.clone() + (direccion.clone() * scene.shadow_bias).into_point(),
+            direccion, 
+        ))*/
+
+
+        /*let n = indice_incidente / indice_transmitido;
+        let argumento = 1.0- n*n * (1.0-dot * dot);
+        if argumento < 0.0{
+            return None;
+        }
+        let direccion_transmitido = (incidente.clone() * n
+        + normal.clone() *(n*dot-argumento.sqrt())).normalize();
         Some(Ray{
-            punto: hit_point.clone() + (direccion.clone() * scene.shadow_bias).into_point(),
-            direccion: direccion.normalize(), 
-        })
+            punto: hit_point.clone() + (direccion_transmitido.clone() * scene.shadow_bias).into_point(),
+            direccion: direccion_transmitido,
+        })*/
     }
     #[inline]
     pub fn direction(&self)->&Vector3D{
@@ -170,6 +198,29 @@ pub enum Light{
     Directional(DirectionalLight),
     Spherical(SphericalLight),
 }
+
+
+fn fresnel(incident: Vector3D, normal: Vector3D, index: f64) -> f64 {
+    let i_dot_n = incident.dot_product(&normal);
+    let mut eta_i = 1.0;
+    let mut eta_t = index as f64;
+    if i_dot_n > 0.0 {
+        eta_i = eta_t;
+        eta_t = 1.0;
+    }
+
+    let sin_t = eta_i / eta_t * (1.0 - i_dot_n * i_dot_n).max(0.0).sqrt();
+    if sin_t > 1.0 {
+        //Total internal reflection
+        return 1.0;
+    } else {
+        let cos_t = (1.0 - sin_t * sin_t).max(0.0).sqrt();
+        let cos_i = cos_t.abs();
+        let r_s = ((eta_t * cos_i) - (eta_i * cos_t)) / ((eta_t * cos_i) + (eta_i * cos_t));
+        let r_p = ((eta_i * cos_i) - (eta_t * cos_t)) / ((eta_i * cos_i) + (eta_t * cos_t));
+        return (r_s * r_s + r_p * r_p) / 2.0;
+    }
+}
 pub trait SceneObject{
     ///Returns the intersection point
     fn intersection_point(&self,ray:&Ray)->Option<Point3D>;
@@ -181,14 +232,22 @@ pub trait SceneObject{
         match self.object_material().tipo{
             MaterialType::Opaque=>return self.get_color(hit_point, scene),
             MaterialType::Refractive{refraction_index, transparency}=>{
-                let mut color = self.get_color(hit_point, scene)* (1.0-transparency);
-                if let Some(refractado) = ray.refraction(
+                let surface_color = self.get_color(hit_point, scene);
+                let mut refraction_color = Color::black();
+                let normal = self.surface_normal(&hit_point);
+                let fresnel_val = fresnel(ray.direction().clone(), normal.clone(), refraction_index);
+                if fresnel_val < 1.0{
+                    let refractado = ray.refraction(
                         &scene,
-                        &self.surface_normal(&hit_point),
+                        &normal,
                         refraction_index,
-                        &hit_point){
-                    color = color +scene.ray_caster(&refractado, current_recurtion).unwrap_or(scene.color_de_fondo.clone())*transparency;
+                        &hit_point).unwrap();
+                    refraction_color = scene.ray_caster(&refractado, current_recurtion).unwrap_or(scene.color_de_fondo.clone())*transparency;
                 }
+                let reflejado = ray.reflection(scene.shadow_bias,&normal,hit_point.clone());
+                let reflejado_color = scene.ray_caster(&reflejado,current_recurtion).unwrap_or(scene.color_de_fondo.clone());
+                let mut color = reflejado_color * fresnel_val + refraction_color * (1.0 - fresnel_val);
+                color = color * transparency * surface_color;                
                 return color;
             },
             MaterialType::Reflective{reflectivity}=>{
@@ -279,20 +338,20 @@ pub mod objects{
             }else{
                 let lambda1 = -aux+(discriminante.sqrt());
                 let lambda2 = -aux-(discriminante.sqrt());
-                //let punto;
+                let punto;
                 if lambda1>lambda2 && lambda2>=0.0{
-                    /*punto =*/ return Some((lambda2 * direccion.clone()).into_point() + ray.punto.clone());
+                    punto =(lambda2 * direccion.clone()).into_point() + ray.punto.clone();
                 }else{
                     if lambda1<0.0{
                         return None;
                     }
-                    /*punto =*/ return Some((lambda1 * direccion.clone()).into_point() + ray.punto.clone());
+                    punto =(lambda1 * direccion.clone()).into_point() + ray.punto.clone();
                 }
                 //evita intersecciones consigo mismo
-                /*if punto.compare(&ray.punto,1e-6){
+                if punto.compare(&ray.punto,1e-6){
                     return None;
                 }
-                Some(punto)*/  
+                Some(punto)  
             }         
         }
         fn surface_normal(&self,hit_point: &Point3D)->Vector3D{
@@ -365,36 +424,3 @@ pub mod objects{
         } 
     }
 }
-/*#[cfg(test)]
-mod tests{
-    use super::*;
-    use crate::maths::{
-        vector3::Vector3D,
-        point::Point3D,
-    };
-    #[test]
-    fn refraccion(){
-        unimplemented!();
-        let rayos = vec![
-            Ray{
-                direccion: Vector3D::new(4.0,5.0,8.0),
-                punto: Point3D::new_zeros(),
-            },
-            Ray{
-                direccion: Vector3D::new(-5.552,9.356,-7.0),
-                punto: Point3D::new_zeros(),
-            },
-            Ray{
-                direccion: Vector3D::new(1.0,-0.6,-4.0),
-                punto: Point3D::new_zeros(),
-            },
-            Ray{
-                direccion: Vector3D::new(8.0,9.0,85.0),
-                punto: Point3D::new_zeros(),
-            },
-        ];
-        for rayo in rayos{
-            rayo.refraction();
-        }
-    }
-}*/

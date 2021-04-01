@@ -109,7 +109,7 @@ impl Scene{
     fn object_between(&self,ray: &Ray)->bool{
         for objeto in &self.objects_list{
             if objeto.intersection_point(&ray).is_some() {
-                 return true;
+                return true;
             }
         }
         false
@@ -165,6 +165,7 @@ mod tests{
         }
     };
     #[test]
+    #[ignore]
     fn esfera_centrada() {
         let mut escena = Scene::new();
         escena.color_de_fondo = Color::from_rgb(135, 206, 235);
@@ -229,40 +230,41 @@ mod tests{
                 MaterialType::Reflective{reflectivity:0.6}
             )
         )));
+        std::fs::write("esfera_centrada.json",serde_json::to_string(&escena).unwrap()).unwrap();
         escena.render().save("esfera_centrada.png").unwrap();
     }
     #[test]
     fn refraccion_solamente(){
         let mut escena = Scene::new();
-        escena.color_de_fondo = Color::from_rgb(135, 206, 235);
-        escena.widht = 800;
-        escena.height = 800;
-        escena.lights.push(Light::Directional(DirectionalLight::new_values(Color::new_white(),Vector3D::new(0.5, -1.0, 0.25),200.0)));
+        escena.color_de_fondo = Color::from_rgb(255, 72, 33);
+        escena.widht = 1500;
+        escena.height = 1500;
+        escena.lights.push(Light::Directional(DirectionalLight::new_values(Color::new_white(),Vector3D::new(1.0, -1.0, 1.0),200.0)));
         escena.objects_list.push(Object::Sphere(Sphere::new(
-            Point3D::new(0.0, 0.0, -5.0),
+            Point3D::new(0.0, -2.0, -10.0),
             2.0,
             Material::new( 
                 Texture::SolidColor(Color::new_white()),
                 0.5,
-                MaterialType::Refractive{refraction_index: 1.3,transparency:1.0}
+                MaterialType::Refractive{refraction_index: 1.3,transparency:0.5}
             )
         )));
-        escena.objects_list.push(Object::Sphere(Sphere::new(
-            Point3D::new(0.0, 0.0, -10.0),
+        /*escena.objects_list.push(Object::Sphere(Sphere::new(
+            Point3D::new(0.0, 5.0, -10.0),
             2.0,
             Material::new( 
                 Texture::SolidColor(Color::black()),
                 0.5,
                 MaterialType::Opaque
             )
-        )));
+        )));*/
         /*escena.objects_list.push(Object::Plane(Plane::new(
             Point3D::new(0.0,-3.0,0.0),
             Vector3D::new(0.0, 1.0, 0.0), 
             Material::new( 
                 Texture::SolidColor(Color::new(0.9,0.9,0.9)),
                 0.5,
-                MaterialType::Refractive{refraction_index: 1.5,transparency: 0.8},
+                MaterialType::Refractive{refraction_index: 1.5,transparency: 1.0},
             )
         )));*/
         escena.objects_list.push(Object::Plane(Plane::new(
@@ -276,10 +278,11 @@ mod tests{
                 MaterialType::Opaque,
             )
         )));
-        std::fs::write("prueba",serde_json::to_string(&escena).unwrap()).unwrap();
+        std::fs::write("prueba.json",serde_json::to_string(&escena).unwrap()).unwrap();
         escena.render().save("esfera_refractada.png").unwrap();
     }
     #[test]
+    #[ignore]
     fn prueba_texturas() {
         let mut escena = Scene::new();
         escena.color_de_fondo = Color::from_rgb(135, 206, 235);
@@ -341,9 +344,11 @@ mod tests{
                     MaterialType::Opaque
             )
         )));
+        std::fs::write("texturas.json",serde_json::to_string(&escena).unwrap()).unwrap();
         escena.render().save("texturas.png").unwrap();
     }
     #[test]
+    #[ignore]
     fn luz_puntual() {
         let mut escena = Scene::new();
         escena.widht = 800;
@@ -394,6 +399,7 @@ mod tests{
                 MaterialType::Opaque
             )
         )));
+        std::fs::write("puntual.json",serde_json::to_string(&escena).unwrap()).unwrap();
         escena.render().save("luz_puntual.png").unwrap();
     }
 }
