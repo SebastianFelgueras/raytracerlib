@@ -54,7 +54,7 @@ impl Ray{
                 self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()
             )
     }
-    pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
+    /*pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
         let mut normal = surface_normal.clone().normalize();
         let incidente = self.direction().clone();
         let mut indice_incidente = scene.indice_refraccion_medio;
@@ -107,7 +107,7 @@ impl Ray{
             punto: hit_point.clone() + (direccion_transmitido.clone() * scene.shadow_bias).into_point(),
             direccion: direccion_transmitido,
         })*/
-    }
+    }*/
     #[inline]
     pub fn direction(&self)->&Vector3D{
         &self.direccion
@@ -200,7 +200,7 @@ pub enum Light{
 }
 
 
-fn fresnel(incident: Vector3D, normal: Vector3D, index: f64) -> f64 {
+/*fn fresnel(incident: Vector3D, normal: Vector3D, index: f64) -> f64 {
     let i_dot_n = incident.dot_product(&normal);
     let mut eta_i = 1.0;
     let mut eta_t = index as f64;
@@ -220,7 +220,7 @@ fn fresnel(incident: Vector3D, normal: Vector3D, index: f64) -> f64 {
         let r_p = ((eta_i * cos_i) - (eta_t * cos_t)) / ((eta_i * cos_i) + (eta_t * cos_t));
         return (r_s * r_s + r_p * r_p) / 2.0;
     }
-}
+}*/
 pub trait SceneObject{
     ///Returns the intersection point
     fn intersection_point(&self,ray:&Ray)->Option<Point3D>;
@@ -232,7 +232,8 @@ pub trait SceneObject{
         match self.object_material().tipo{
             MaterialType::Opaque=>return self.get_color(hit_point, scene),
             MaterialType::Refractive{refraction_index, transparency}=>{
-                let surface_color = self.get_color(hit_point, scene);
+                todo!();
+                /*let surface_color = self.get_color(hit_point, scene);
                 let mut refraction_color = Color::black();
                 let normal = self.surface_normal(&hit_point);
                 let fresnel_val = fresnel(ray.direction().clone(), normal.clone(), refraction_index);
@@ -248,7 +249,7 @@ pub trait SceneObject{
                 let reflejado_color = scene.ray_caster(&reflejado,current_recurtion).unwrap_or(scene.color_de_fondo.clone());
                 let mut color = reflejado_color * fresnel_val + refraction_color * (1.0 - fresnel_val);
                 color = color * transparency * surface_color;                
-                return color;
+                return color;*/
             },
             MaterialType::Reflective{reflectivity}=>{
                 let mut color = self.get_color(hit_point, scene);
