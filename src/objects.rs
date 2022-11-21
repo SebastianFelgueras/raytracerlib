@@ -38,8 +38,8 @@ impl Ray{
         Ray::new(
             Point3D::new_zeros(),
             Vector3D::new(
-                ((x as f64+0.5)/ scene.widht as f64)*2.0 -1.0,
-                1.0-((y as f64+0.5)/scene.height as f64)*2.0,
+                ((x as f32+0.5)/ scene.widht as f32)*2.0 -1.0,
+                1.0-((y as f32+0.5)/scene.height as f32)*2.0,
                 -1.0)
             ) //Notese que el 1.0- resto en y es porque la convención para formatos de imágen es y para abajo
     }
@@ -48,13 +48,13 @@ impl Ray{
         Ray::new(Point3D::new_zeros(),Vector3D::new_zeros())
     }
     #[inline]
-    pub fn reflection(&self,shadow_bias:f64,surface_normal:&Vector3D,origin: Point3D)->Self{
+    pub fn reflection(&self,shadow_bias:f32,surface_normal:&Vector3D,origin: Point3D)->Self{
         Ray::new(
                 origin + (surface_normal.clone() * shadow_bias).into_point(),
                 self.direccion.clone()-2.0*(self.direccion.dot_product(surface_normal))*surface_normal.clone()
             )
     }
-    /*pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f64, hit_point: &Point3D)->Option<Ray>{
+    /*pub fn refraction(&self,scene: &Scene,surface_normal: &Vector3D, index: f32, hit_point: &Point3D)->Option<Ray>{
         let mut normal = surface_normal.clone().normalize();
         let incidente = self.direction().clone();
         let mut indice_incidente = scene.indice_refraccion_medio;
@@ -75,10 +75,10 @@ impl Ray{
         let componente_normal = -1.0 * coseno_refractado *normal.clone();
         //cross NO ESTA NORMALIZADO TODAVIA
         let mut horizontal = cross.cross_product(&normal).normalize();
-        if !(horizontal.dot_product(&incidente).acos() > std::f64::consts::FRAC_PI_2){
+        if !(horizontal.dot_product(&incidente).acos() > std::f32::consts::FRAC_PI_2){
             horizontal = -1.0 * horizontal;
         }
-        let componente_horizontal = (std::f64::consts::FRAC_PI_2 - angulo_refractado_normal).cos() * horizontal;
+        let componente_horizontal = (std::f32::consts::FRAC_PI_2 - angulo_refractado_normal).cos() * horizontal;
         let direccion_refractado = componente_horizontal + componente_normal;
         Some(Ray::new(hit_point.clone() + (1e-6 * direccion_refractado.clone()).into_point(),direccion_refractado))
         /*
@@ -158,7 +158,7 @@ impl SceneObject for Object{
 pub struct DirectionalLight{
     pub color: Color,
     pub direction: Vector3D,
-    pub intensity: f64,
+    pub intensity: f32,
 }
 impl DirectionalLight{
     pub fn new()->Self{
@@ -168,7 +168,7 @@ impl DirectionalLight{
             intensity: 20.0,
         }
     }
-    pub fn new_values(color: Color, direction: Vector3D,intensity:f64)->Self{
+    pub fn new_values(color: Color, direction: Vector3D,intensity:f32)->Self{
         DirectionalLight{
             color,
             direction,
@@ -181,11 +181,11 @@ impl DirectionalLight{
 pub struct SphericalLight{
     pub punto: Point3D,
     pub color: Color,
-    pub intensidad: f64,
+    pub intensidad: f32,
 }
 impl SphericalLight{
     #[inline]
-    pub fn new(punto: Point3D,color:Color,intensidad:f64)->Self{
+    pub fn new(punto: Point3D,color:Color,intensidad:f32)->Self{
         SphericalLight{
             punto,
             color,
@@ -200,10 +200,10 @@ pub enum Light{
 }
 
 
-/*fn fresnel(incident: Vector3D, normal: Vector3D, index: f64) -> f64 {
+/*fn fresnel(incident: Vector3D, normal: Vector3D, index: f32) -> f32 {
     let i_dot_n = incident.dot_product(&normal);
     let mut eta_i = 1.0;
-    let mut eta_t = index as f64;
+    let mut eta_t = index as f32;
     if i_dot_n > 0.0 {
         eta_i = eta_t;
         eta_t = 1.0;
@@ -290,12 +290,12 @@ pub trait SceneObject{
                         }
                     }
                     light_color = &luz.color;
-                    light_intensity = luz.intensidad / (std::f64::consts::PI * 4.0 * direction_module * direction_module);
+                    light_intensity = luz.intensidad / (std::f32::consts::PI * 4.0 * direction_module * direction_module);
                 },
             }
             let coordinates = self.texture_coordinates(hit_point);
             let light_power = self.surface_normal(hit_point).dot_product(&(-1.0*direction.normalize())).max(0.0) * light_intensity;
-            let light_reflected = self.object_material().albedoo / std::f64::consts::PI;
+            let light_reflected = self.object_material().albedoo / std::f32::consts::PI;
             color = color + self.object_material().texture.color_at(coordinates,scene.gamma_correction) * light_color.clone() * light_power * light_reflected;
         }
         color.clamp();
@@ -326,7 +326,7 @@ pub mod objects{
     #[derive(Serialize,Deserialize)]
     pub struct Sphere{
         pub center: Point3D,
-        pub radio: f64,
+        pub radio: f32,
         pub material: Material,
     }
     impl SceneObject for Sphere{
@@ -360,8 +360,8 @@ pub mod objects{
         }
         fn texture_coordinates(&self,hit_point: &Point3D)->TextureCoordinates{
             let punto = hit_point.clone() - self.center.clone();
-            let x = (1.0+punto.z.atan2(punto.x)/std::f64::consts::PI)*0.5; //declinacion
-            let y = f64::acos(punto.y/self.radio)/std::f64::consts::PI;// altura
+            let x = (1.0+punto.z.atan2(punto.x)/std::f32::consts::PI)*0.5; //declinacion
+            let y = f32::acos(punto.y/self.radio)/std::f32::consts::PI;// altura
             TextureCoordinates::new(x,y)
         }
         fn object_material(&self)->&Material{
@@ -369,7 +369,7 @@ pub mod objects{
         }
     }
     impl Sphere{
-        pub fn new(center:Point3D,radio:f64,material: Material)->Self{
+        pub fn new(center:Point3D,radio:f32,material: Material)->Self{
             Sphere{
                 center,
                 radio,

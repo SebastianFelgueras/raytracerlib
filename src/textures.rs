@@ -9,12 +9,12 @@ use serde::{
     Serialize, Deserialize,Deserializer
 };
 pub struct TextureCoordinates{
-    pub x: f64,
-    pub y:f64,
+    pub x: f32,
+    pub y:f32,
 }
 impl TextureCoordinates{
     #[inline]
-    pub fn new(x:f64,y:f64)->Self{
+    pub fn new(x:f32,y:f32)->Self{
         TextureCoordinates{
             x,y,
         }
@@ -42,9 +42,9 @@ impl Texture{
             Texture::SolidColor(valor)=>valor.clone(),
             Texture::Texture(valor)=>{
                 if let Some(imagen) = &valor.texture{
-                    fn wrap(val: f64, bound: u32)->u32{
+                    fn wrap(val: f32, bound: u32)->u32{
                         let signed_bound = bound as i32;
-                        let float_coord = val * bound as f64;
+                        let float_coord = val * bound as f32;
                         let wrapped_coord = (float_coord as i32) % signed_bound;
                         if wrapped_coord < 0 {
                             (wrapped_coord + signed_bound) as u32

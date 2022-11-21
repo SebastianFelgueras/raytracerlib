@@ -3,13 +3,13 @@ use serde::{Serialize, Deserialize};
 use super::vector3::{Vector3,Vector3D};
 #[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct Point3D{
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
 }
 impl Point3D{
     #[inline]
-    pub fn new(x: f64,y: f64, z: f64)->Self{
+    pub fn new(x: f32,y: f32, z: f32)->Self{
         Point3D{
             x,y,z
         }
@@ -34,7 +34,7 @@ impl Point3D{
         self
     }
     #[inline]
-    pub fn compare(&self,point:&Self,epsilon: f64)->bool{
+    pub fn compare(&self,point:&Self,epsilon: f32)->bool{
         if (self.x - point.x).abs() < epsilon && (self.y - point.y).abs() < epsilon &&(self.z - point.z).abs() < epsilon{
             return true;
         }
@@ -51,19 +51,19 @@ impl ops::Sub for Point3D{
     }
 }
 impl Vector3 for Point3D{
-    fn x(&self)->f64{
+    fn x(&self)->f32{
         self.x
     }
-    fn y(&self)->f64{
+    fn y(&self)->f32{
         self.y
     }
-    fn z(&self)->f64{
+    fn z(&self)->f32{
         self.z
     }
 }
-impl ops::Mul<f64> for Point3D{
+impl ops::Mul<f32> for Point3D{
     type Output = Point3D;
-    fn mul(mut self,other: f64)->Self{
+    fn mul(mut self,other: f32)->Self{
         self.x *= other;
         self.y *= other;
         self.z *= other;

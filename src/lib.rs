@@ -22,10 +22,10 @@ pub struct Scene{
     pub objects_list: Vec<objects::Object>,
     pub max_reflections: usize,
     pub color_de_fondo: color::Color,
-    pub indice_refraccion_medio: f64,
+    pub indice_refraccion_medio: f32,
     pub numero_threads: Nthreads,
     pub gamma_correction: bool,
-    shadow_bias: f64,
+    shadow_bias: f32,
 }
 #[derive(Serialize,Deserialize)]
 pub enum Nthreads{

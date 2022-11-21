@@ -3,19 +3,19 @@ use super::point::Point3D;
 use serde::{Serialize, Deserialize};
 ///Implements 3D mathematical operations (like dot product, cross product, etc) for objects
 pub trait Vector3{
-    fn x(&self)->f64;
-    fn y(&self)->f64;
-    fn z(&self)->f64;
+    fn x(&self)->f32;
+    fn y(&self)->f32;
+    fn z(&self)->f32;
     #[inline]
-    fn dot_product<T: Vector3>(&self,vector: &T)->f64{
+    fn dot_product<T: Vector3>(&self,vector: &T)->f32{
         self.x() * vector.x() + self.y() * vector.y() + self.z() * vector.z()
     }
     #[inline]
-    fn angle_between<T: Vector3>(&self,vector: &T)->f64{
+    fn angle_between<T: Vector3>(&self,vector: &T)->f32{
         (self.dot_product(vector)/(vector.module()*self.module())).acos()
     }
     #[inline]
-    fn module(&self)->f64{
+    fn module(&self)->f32{
         (self.x() * self.x()+self.y()* self.y()+self.z()*self.z()).sqrt()
     }
     #[inline]
@@ -43,7 +43,7 @@ pub trait Vector3{
             self.z() + vector.z())
     }
     #[inline]
-    fn escalar_product(&self,escalar:f64)->Vector3D{
+    fn escalar_product(&self,escalar:f32)->Vector3D{
         Vector3D::new(self.x()*escalar, self.y()*escalar, self.z()*escalar)
     }
     #[inline]
@@ -66,9 +66,9 @@ pub trait Vector3{
 #[derive(PartialEq,Debug,Clone,Serialize,Deserialize)]
 ///A structure that represents a 3D vector and implements Vector3, its recomended to use it, it implements standard ops and PartialEq (consider that it is meaningless to consider one gretear than the other)
 pub struct Vector3D{
-    x: f64,
-    y: f64,
-    z: f64,
+    x: f32,
+    y: f32,
+    z: f32,
 }
 impl ops::Add for Vector3D{
     type Output = Vector3D;
@@ -82,13 +82,13 @@ impl ops::Sub for Vector3D{
         self.substract(&other)
     }
 }
-impl ops::Mul<f64> for Vector3D{
+impl ops::Mul<f32> for Vector3D{
     type Output = Vector3D;
-    fn mul(self,numero:f64)->Self{
+    fn mul(self,numero:f32)->Self{
         self.escalar_product(numero)
     }
 }
-impl ops::Mul<Vector3D> for f64{
+impl ops::Mul<Vector3D> for f32{
     type Output = Vector3D;
     fn mul(self,vector:Vector3D)->Vector3D{
         vector.escalar_product(self)
@@ -110,7 +110,7 @@ impl Vector3D{
         }
     }
     #[inline]
-    pub fn new(x: f64, y: f64,z: f64)->Self{
+    pub fn new(x: f32, y: f32,z: f32)->Self{
         Vector3D{
             x,
             y,
@@ -133,13 +133,13 @@ impl Vector3D{
     }
 }
 impl Vector3 for Vector3D{
-    fn x(&self)->f64{
+    fn x(&self)->f32{
         self.x
     }
-    fn y(&self)->f64{
+    fn y(&self)->f32{
         self.y
     }
-    fn z(&self)->f64{
+    fn z(&self)->f32{
         self.z
     }
 }

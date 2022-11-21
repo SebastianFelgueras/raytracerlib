@@ -1,24 +1,24 @@
 use std::ops;
 use image::{Rgba,Pixel};
 use serde::{Serialize, Deserialize};
-const GAMMA_CORRCTION_VALUE:f64 = 2.2;
+const GAMMA_CORRCTION_VALUE:f32 = 2.2;
 #[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct Color{
-    pub red: f64, //Quizás no sea necesario que sea un f32, evaluar después
-    pub green: f64,
-    pub blue: f64,
+    pub red: f32, //No es claro que con f32 sea más rápido por ahora
+    pub green: f32,
+    pub blue: f32,
 }
 #[inline]
-fn gamma_decode(linear:f64)->f64{
+fn gamma_decode(linear:f32)->f32{
     linear.powf(GAMMA_CORRCTION_VALUE)
 }
 #[inline]
-fn gamma_encode(linear:f64)->f64{
+fn gamma_encode(linear:f32)->f32{
     linear.powf(1.0 / GAMMA_CORRCTION_VALUE)   
 }
 impl Color{
     #[inline]
-    pub fn new(red: f64,green:f64,blue:f64)->Self{
+    pub fn new(red: f32,green:f32,blue:f32)->Self{
         Color{
             red,
             green,
@@ -27,7 +27,7 @@ impl Color{
     }
     #[inline]
     pub fn from_rgb(r:u8,g:u8,b:u8)->Self{
-        Color::new(r as f64/255.0, g as f64/255.0, b as f64/255.0)
+        Color::new(r as f32/255.0, g as f32/255.0, b as f32/255.0)
     }
     #[inline]
     pub fn to_rgb(mut self,gamma_correction: bool)->(u8,u8,u8){
@@ -80,9 +80,9 @@ impl Color{
     #[inline]
     pub fn from_rgba(rgba: Rgba<u8>,gamma_correction: bool)->Self{
         if gamma_correction{
-            Color::new(gamma_decode(rgba[0] as f64 / 255.0), gamma_decode(rgba[1] as f64 / 255.0), gamma_decode(rgba[2] as f64 / 255.0))
+            Color::new(gamma_decode(rgba[0] as f32 / 255.0), gamma_decode(rgba[1] as f32 / 255.0), gamma_decode(rgba[2] as f32 / 255.0))
         }else{
-            Color::new(rgba[0] as f64 / 255.0, rgba[1] as f64 / 255.0, rgba[2] as f64 / 255.0)
+            Color::new(rgba[0] as f32 / 255.0, rgba[1] as f32 / 255.0, rgba[2] as f32 / 255.0)
         }
     }
 }
@@ -92,9 +92,9 @@ impl ops::Mul for Color{
         Color::new(self.red * other.red, self.green * other.green, self.blue * other.blue)
     }
 }
-impl ops::Mul<f64> for Color{
+impl ops::Mul<f32> for Color{
     type Output = Color;
-    fn mul(self,other: f64)->Color{
+    fn mul(self,other: f32)->Color{
         Color::new(self.red * other, self.green * other, self.blue * other)
     }
 }

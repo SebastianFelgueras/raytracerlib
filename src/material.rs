@@ -5,18 +5,18 @@ use serde::{Serialize, Deserialize};
 #[derive(Clone,Serialize,Deserialize)]
 pub enum MaterialType{
     Opaque,
-    Reflective{reflectivity: f64},
-    Refractive{refraction_index: f64, transparency: f64},
+    Reflective{reflectivity: f32},
+    Refractive{refraction_index: f32, transparency: f32},
 }
 #[derive(Clone,Serialize,Deserialize)]
 pub struct Material{
     pub texture: Texture,
-    pub albedoo: f64,
+    pub albedoo: f32,
     pub tipo: MaterialType, 
 }
 impl Material{
     #[inline]
-    pub fn new(texture: Texture,albedoo: f64, tipo: MaterialType)->Self{
+    pub fn new(texture: Texture,albedoo: f32, tipo: MaterialType)->Self{
         Material{
             texture,
             albedoo,
