@@ -8,7 +8,7 @@ edition = "2018"
 [profile.release]
 lto = true
 [dependencies]
-image = "0.23.12"
+image = "0.24"
 serde = {version = "1", features = ["derive"]}
 num_cpus = "1"
 crossbeam-utils = "0.8" #hace falta ya que sino no reconoce que el thread termina antes de terminar la funcion
